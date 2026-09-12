@@ -1,0 +1,664 @@
+{
+  "protocol": 1,
+  "_comment": "ARGX 标准帧序列。由 tests/run.js 跑：node tests/run.js。每个 scenario 独立起一台虚拟设备，steps 顺序执行；expect 里的帧做「部分匹配」（只校验写出来的字段），expectExactly 额外要求本步的帧数与顺序完全一致。",
+  "scenarios": [
+    {
+      "name": "01 握手与能力声明",
+      "setup": { "dev": "ARGX-0001" },
+      "steps": [
+        {
+          "note": "连接后设备主动上报 ready，caps.out 列出全部四种内置能力，caps.in 为空",
+          "connect": true,
+          "expectExactly": [
+            {
+              "c": "ready",
+              "dev": "ARGX-0001",
+              "proto": 1,
+              "caps": {
+                "out": ["light.main", "sound.beeper", "motion.vibrate", "env.relay"],
+                "in": []
+              }
+            }
+          ]
+        },
+        {
+          "note": "hello 让设备重发 ready",
+          "send": { "v": 1, "c": "hello", "seq": 1 },
+          "expect": [{ "c": "ready" }]
+        },
+        {
+          "note": "query 回 state，四种能力都在，强度全为 0",
+          "send": { "v": 1, "c": "query", "seq": 2 },
+          "expect": [
+            {
+              "c": "state",
+              "dev": "ARGX-0001",
+              "out": {
+                "light.main": { "i": 0, "ttl": 0 },
+                "sound.beeper": { "i": 0 },
+                "motion.vibrate": { "i": 0 },
+                "env.relay": { "i": 0 }
+              }
+            }
+          ],
+          "expectState": "active"
+        }
+      ]
+    },
+
+    {
+      "name": "02 四种内置能力逐个触发",
+      "setup": { "dev": "ARGX-0001" },
+      "steps": [
+        { "note": "先握手", "connect": true, "expect": [{ "c": "ready" }] },
+        {
+          "note": "light.main：直接给 1.0，无渐变，立刻到位",
+          "send": { "v": 1, "c": "cue", "id": "light.main", "p": { "i": 1, "dur": 5000 }, "seq": 10 },
+          "expectExactly": [{ "c": "ack", "seq": 10, "r": "applied" }],
+          "expectLevel": { "light.main": 1 }
+        },
+        {
+          "note": "sound.beeper：给 1.0 并指定 200ms",
+          "send": { "v": 1, "c": "cue", "id": "sound.beeper", "p": { "i": 1, "dur": 200 }, "seq": 11 },
+          "expectExactly": [{ "c": "ack", "seq": 11, "r": "applied" }],
+          "expectLevel": { "sound.beeper": 1 }
+        },
+        {
+          "note": "motion.vibrate：带渐变，起始瞬间强度仍是 0，100ms 后到 0.5",
+          "send": { "v": 1, "c": "cue", "id": "motion.vibrate", "p": { "i": 0.5, "ramp": 100, "dur": 5000 }, "seq": 12 },
+          "expectExactly": [{ "c": "ack", "seq": 12, "r": "applied" }],
+          "expectLevel": { "motion.vibrate": 0 }
+        },
+        {
+          "note": "渐变推进到中点",
+          "advance": 50,
+          "expectLevel": { "motion.vibrate": 0.25 }
+        },
+        {
+          "note": "渐变结束，停在目标值",
+          "advance": 100,
+          "expectLevel": { "motion.vibrate": 0.5 }
+        },
+        {
+          "note": "env.relay：开关量，i=1 视为吸合",
+          "send": { "v": 1, "c": "cue", "id": "env.relay", "p": { "i": 1, "dur": 5000 }, "seq": 13 },
+          "expectExactly": [{ "c": "ack", "seq": 13, "r": "applied" }],
+          "expectLevel": { "env.relay": 1 }
+        },
+        {
+          "note": "四路同时查询，状态各自独立",
+          "send": { "v": 1, "c": "query", "seq": 14 },
+          "expect": [
+            {
+              "c": "state",
+              "out": {
+                "light.main": { "i": 1 },
+                "sound.beeper": { "i": 1 },
+                "motion.vibrate": { "i": 0.5 },
+                "env.relay": { "i": 1 }
+              }
+            }
+          ]
+        }
+      ]
+    },
+
+    {
+      "name": "03 参数标准化与钳制",
+      "setup": { "dev": "ARGX-0001" },
+      "steps": [
+        { "connect": true, "expect": [{ "c": "ready" }] },
+        {
+          "note": "i=5 超上界 → 钳到 1，不报错",
+          "send": { "v": 1, "c": "cue", "id": "light.main", "p": { "i": 5, "dur": 5000 }, "seq": 20 },
+          "expectExactly": [{ "c": "ack", "seq": 20, "r": "applied" }],
+          "expectLevel": { "light.main": 1 }
+        },
+        {
+          "note": "i=-2 超下界 → 钳到 0",
+          "send": { "v": 1, "c": "cue", "id": "light.main", "p": { "i": -2, "dur": 5000 }, "seq": 21 },
+          "expectExactly": [{ "c": "ack", "seq": 21, "r": "preempted" }],
+          "expectLevel": { "light.main": 0 }
+        },
+        {
+          "note": "dur 超 30 秒上限 → 钳到 30000",
+          "send": { "v": 1, "c": "cue", "id": "light.main", "p": { "i": 0.5, "dur": 999999 }, "seq": 22 },
+          "expectExactly": [{ "c": "ack", "seq": 22, "r": "preempted" }],
+          "expectTtl": { "light.main": [29990, 30000] }
+        },
+        {
+          "note": "dur 缺省 = 30000（TTL 上限，防止效果永久占用输出）",
+          "send": { "v": 1, "c": "cue", "id": "sound.beeper", "p": { "i": 1 }, "seq": 23 },
+          "expectExactly": [{ "c": "ack", "seq": 23, "r": "applied" }],
+          "expectTtl": { "sound.beeper": [29990, 30000] }
+        },
+        {
+          "note": "ramp=5000 大于 dur=100 → ramp 被钳到 100",
+          "send": { "v": 1, "c": "cue", "id": "motion.vibrate", "p": { "i": 1, "dur": 100, "ramp": 5000 }, "seq": 24 },
+          "expectExactly": [{ "c": "ack", "seq": 24, "r": "applied" }]
+        },
+        {
+          "note": "50ms 后已到一半：证明 ramp 是 100 而不是 5000（后者此刻只有 0.01）",
+          "advance": 50,
+          "expectLevel": { "motion.vibrate": 0.5 }
+        },
+        {
+          "note": "dur=0 → 立即到期释放",
+          "send": { "v": 1, "c": "cue", "id": "env.relay", "p": { "i": 1, "dur": 0 }, "seq": 25 },
+          "expectExactly": [{ "c": "ack", "seq": 25, "r": "applied" }]
+        },
+        { "advance": 1, "expectLevel": { "env.relay": 0 } },
+        {
+          "note": "pri 超范围 → 钳到 3（ambient）",
+          "send": { "v": 1, "c": "cue", "id": "env.relay", "p": { "i": 1, "pri": 99, "dur": 5000 }, "seq": 26 },
+          "expectExactly": [{ "c": "ack", "seq": 26, "r": "applied" }]
+        }
+      ]
+    },
+
+    {
+      "name": "04 渐变 ramp 逐帧推进",
+      "setup": { "dev": "ARGX-0001" },
+      "steps": [
+        { "connect": true, "expect": [{ "c": "ready" }] },
+        {
+          "note": "2 秒从 0 渐变到 0.8，保持 5 秒（协议 §7 的例子）",
+          "send": { "v": 1, "c": "cue", "id": "light.main", "p": { "i": 0.8, "ramp": 2000, "dur": 5000 }, "seq": 30 },
+          "expectExactly": [{ "c": "ack", "seq": 30, "r": "applied" }],
+          "expectLevel": { "light.main": 0 }
+        },
+        { "advance": 500, "expectLevel": { "light.main": 0.2 } },
+        { "advance": 500, "expectLevel": { "light.main": 0.4 } },
+        { "advance": 1000, "expectLevel": { "light.main": 0.8 } },
+        { "advance": 2999, "expectLevel": { "light.main": 0.8 } },
+        { "note": "TTL 到点自动释放，不需要任何人再发帧", "advance": 1, "expectLevel": { "light.main": 0 } }
+      ]
+    },
+
+    {
+      "name": "05 优先级抢占与丢弃",
+      "setup": { "dev": "ARGX-0001" },
+      "steps": [
+        { "connect": true, "expect": [{ "c": "ready" }] },
+        {
+          "note": "ambient 起个氛围",
+          "send": { "v": 1, "c": "cue", "id": "light.main", "p": { "i": 0.3, "dur": 10000, "pri": 3 }, "seq": 40 },
+          "expectExactly": [{ "c": "ack", "seq": 40, "r": "applied" }],
+          "expectLevel": { "light.main": 0.3 }
+        },
+        {
+          "note": "normal 抢占 ambient",
+          "send": { "v": 1, "c": "cue", "id": "light.main", "p": { "i": 1, "dur": 10000, "pri": 2 }, "seq": 41 },
+          "expectExactly": [{ "c": "ack", "seq": 41, "r": "preempted" }],
+          "expectLevel": { "light.main": 1 }
+        },
+        {
+          "note": "ambient 想打断 normal → 丢弃，亮度不变",
+          "send": { "v": 1, "c": "cue", "id": "light.main", "p": { "i": 0.1, "dur": 10000, "pri": 3 }, "seq": 42 },
+          "expectExactly": [{ "c": "ack", "seq": 42, "r": "dropped" }],
+          "expectLevel": { "light.main": 1 }
+        },
+        {
+          "note": "high 抢占 normal",
+          "send": { "v": 1, "c": "cue", "id": "light.main", "p": { "i": 0.6, "dur": 10000, "pri": 1 }, "seq": 43 },
+          "expectExactly": [{ "c": "ack", "seq": 43, "r": "preempted" }],
+          "expectLevel": { "light.main": 0.6 }
+        },
+        {
+          "note": "critical 抢占 high",
+          "send": { "v": 1, "c": "cue", "id": "light.main", "p": { "i": 0.9, "dur": 10000, "pri": 0 }, "seq": 44 },
+          "expectExactly": [{ "c": "ack", "seq": 44, "r": "preempted" }],
+          "expectLevel": { "light.main": 0.9 }
+        },
+        {
+          "note": "同优先级抢占（新效果 pri >= 当前 pri）",
+          "send": { "v": 1, "c": "cue", "id": "light.main", "p": { "i": 0.2, "dur": 10000, "pri": 0 }, "seq": 45 },
+          "expectExactly": [{ "c": "ack", "seq": 45, "r": "preempted" }],
+          "expectLevel": { "light.main": 0.2 }
+        }
+      ]
+    },
+
+    {
+      "name": "06 critical 执行前清空所有输出",
+      "setup": { "dev": "ARGX-0001" },
+      "steps": [
+        { "connect": true, "expect": [{ "c": "ready" }] },
+        {
+          "note": "三路同时亮着",
+          "send": { "v": 1, "c": "cue", "id": "light.main", "p": { "i": 1, "dur": 20000, "pri": 2 }, "seq": 50 },
+          "expect": [{ "c": "ack", "seq": 50 }]
+        },
+        {
+          "send": { "v": 1, "c": "cue", "id": "env.relay", "p": { "i": 1, "dur": 20000, "pri": 2 }, "seq": 51 },
+          "expect": [{ "c": "ack", "seq": 51 }]
+        },
+        {
+          "send": { "v": 1, "c": "cue", "id": "sound.beeper", "p": { "i": 1, "dur": 20000, "pri": 1 }, "seq": 52 },
+          "expect": [{ "c": "ack", "seq": 52 }]
+        },
+        {
+          "note": "critical 的振动进来 → 其余三路全部归零，只剩振动",
+          "send": { "v": 1, "c": "cue", "id": "motion.vibrate", "p": { "i": 1, "dur": 20000, "pri": 0 }, "seq": 53 },
+          "expectExactly": [{ "c": "ack", "seq": 53, "r": "preempted" }],
+          "expectLevel": {
+            "light.main": 0,
+            "env.relay": 0,
+            "sound.beeper": 0,
+            "motion.vibrate": 1
+          }
+        }
+      ]
+    },
+
+    {
+      "name": "07 幂等、连点去重、TTL 释放",
+      "setup": { "dev": "ARGX-0001", "spy": ["light.main"] },
+      "steps": [
+        { "connect": true, "expect": [{ "c": "ready" }] },
+        {
+          "note": "正常执行一次 → 回调 1 次",
+          "send": { "v": 1, "c": "cue", "id": "light.main", "p": { "i": 0.5, "dur": 5000 }, "seq": 100 },
+          "expectExactly": [{ "c": "ack", "seq": 100, "r": "applied" }],
+          "expectCalls": { "light.main": 1 }
+        },
+        {
+          "note": "同 id 同 seq 重发 → 幂等，不重复执行",
+          "send": { "v": 1, "c": "cue", "id": "light.main", "p": { "i": 0.5, "dur": 5000 }, "seq": 100 },
+          "expectExactly": [{ "c": "ack", "seq": 100, "r": "dup" }],
+          "expectCalls": { "light.main": 1 }
+        },
+        {
+          "note": "换了 seq 但参数完全相同 → 视为连点，仍然不重复执行",
+          "send": { "v": 1, "c": "cue", "id": "light.main", "p": { "i": 0.5, "dur": 5000 }, "seq": 101 },
+          "expectExactly": [{ "c": "ack", "seq": 101, "r": "dup" }],
+          "expectCalls": { "light.main": 1 }
+        },
+        {
+          "note": "参数不同（改亮度）→ 照常执行，否则氛围播放中途没法调亮度",
+          "send": { "v": 1, "c": "cue", "id": "light.main", "p": { "i": 0.7, "dur": 5000 }, "seq": 102 },
+          "expectExactly": [{ "c": "ack", "seq": 102, "r": "preempted" }],
+          "expectCalls": { "light.main": 2 },
+          "expectLevel": { "light.main": 0.7 }
+        },
+        {
+          "note": "TTL 到点自动释放：回调收到 release=true、level=0",
+          "advance": 5000,
+          "expectCalls": { "light.main": 3 },
+          "expectLevels": { "light.main": [0.5, 0.7, 0] }
+        }
+      ]
+    },
+
+    {
+      "name": "08 未知命令与未知 id 回 err 且不崩溃",
+      "setup": { "dev": "ARGX-0001" },
+      "steps": [
+        { "connect": true, "expect": [{ "c": "ready" }] },
+        {
+          "note": "cue 一个没注册的 id",
+          "send": { "v": 1, "c": "cue", "id": "light.nope", "p": { "i": 1 }, "seq": 60 },
+          "expectExactly": [{ "c": "err", "code": "unknown_id", "msg": "light.nope", "seq": 60 }]
+        },
+        {
+          "note": "完全不认识的命令",
+          "send": { "v": 1, "c": "explode", "seq": 61 },
+          "expectExactly": [{ "c": "err", "code": "unknown_cmd", "msg": "explode", "seq": 61 }]
+        },
+        {
+          "note": "协议版本不兼容",
+          "send": { "v": 99, "c": "ping", "seq": 62 },
+          "expectExactly": [{ "c": "err", "code": "bad_version" }]
+        },
+        {
+          "note": "err 只是上报不是崩溃：会话照常，正常帧继续处理",
+          "send": { "v": 1, "c": "cue", "id": "light.main", "p": { "i": 1, "dur": 3000 }, "seq": 63 },
+          "expectExactly": [{ "c": "ack", "seq": 63, "r": "applied" }],
+          "expectLevel": { "light.main": 1 },
+          "expectState": "active"
+        }
+      ]
+    },
+
+    {
+      "name": "09 非法帧被忽略",
+      "setup": { "dev": "ARGX-0001" },
+      "steps": [
+        { "connect": true, "expect": [{ "c": "ready" }] },
+        {
+          "note": "ROM 启动日志式垃圾行（不以 { 开头）→ 静默丢弃，连 err 都不回",
+          "send": "ets Jul 29 2019 12:21:46\r\nrst:0x1 (POWERON_RESET),boot:0x13\n",
+          "expectNone": true
+        },
+        {
+          "note": "空行忽略",
+          "send": "\n\n",
+          "expectNone": true
+        },
+        {
+          "note": "以 { 开头但 JSON 坏了 → 回 err:bad_frame",
+          "send": "{not json at all\n",
+          "expectExactly": [{ "c": "err", "code": "bad_frame" }]
+        },
+        {
+          "note": "合法 JSON 但没有 c → 回 err:bad_frame",
+          "send": "{\"v\":1,\"seq\":9}\n",
+          "expectExactly": [{ "c": "err", "code": "bad_frame", "seq": 9 }]
+        },
+        {
+          "note": "超长行（>512 字节）以 { 开头 → 丢弃并回 err",
+          "sendRepeat": { "prefix": "{", "ch": "a", "n": 600, "suffix": "\n" },
+          "expectExactly": [{ "c": "err", "code": "bad_frame", "msg": "line too long" }]
+        },
+        {
+          "note": "超长行不以 { 开头 → 静默丢弃",
+          "sendRepeat": { "prefix": "x", "ch": "b", "n": 600, "suffix": "\n" },
+          "expectNone": true
+        },
+        {
+          "note": "半行分片：先发一半，再发另一半，拼起来才算一帧",
+          "send": "{\"v\":1,\"c\":\"pi",
+          "expectNone": true
+        },
+        {
+          "note": "补上另一半 → 正常回 pong，证明前面那些垃圾没把接收状态搞乱",
+          "send": "ng\",\"seq\":70}\n",
+          "expectExactly": [{ "c": "pong", "seq": 70 }]
+        }
+      ]
+    },
+
+    {
+      "name": "10 心跳与掉线判定",
+      "setup": { "dev": "ARGX-0001" },
+      "steps": [
+        { "connect": true, "expect": [{ "c": "ready" }] },
+        {
+          "note": "ping → pong，seq 原样带回",
+          "send": { "v": 1, "c": "ping", "seq": 80 },
+          "expectExactly": [{ "c": "pong", "seq": 80 }],
+          "expectState": "active"
+        },
+        {
+          "note": "3 秒一次心跳",
+          "advance": 3000,
+          "send": { "v": 1, "c": "ping", "seq": 81 },
+          "expectExactly": [{ "c": "pong", "seq": 81 }],
+          "expectState": "active"
+        },
+        {
+          "note": "10 秒没 ping → 只置 stale，输出不受影响",
+          "advance": 10001,
+          "expectState": "stale"
+        },
+        {
+          "note": "心跳恢复 → 回到 active",
+          "send": { "v": 1, "c": "ping", "seq": 82 },
+          "expectExactly": [{ "c": "pong", "seq": 82 }],
+          "expectState": "active"
+        }
+      ]
+    },
+
+    {
+      "name": "11 看门狗 15 秒自动回 idle",
+      "setup": { "dev": "ARGX-0001" },
+      "steps": [
+        { "connect": true, "expect": [{ "c": "ready" }] },
+        {
+          "note": "灯亮起，TTL 给满 30 秒（比看门狗长，确保不是 TTL 关的灯）",
+          "send": { "v": 1, "c": "cue", "id": "light.main", "p": { "i": 1, "dur": 30000 }, "seq": 90 },
+          "expectExactly": [{ "c": "ack", "seq": 90, "r": "applied" }],
+          "expectLevel": { "light.main": 1 }
+        },
+        {
+          "note": "14 秒还没到看门狗线（15 秒），灯必须还亮着",
+          "advance": 14000,
+          "expectLevel": { "light.main": 1 }
+        },
+        {
+          "note": "但 10 秒没 ping 了，此刻会话已经是 stale——注意 stale 不灭灯，这两件事是分开的",
+          "expectState": "stale",
+          "expectLevel": { "light.main": 1 }
+        },
+        {
+          "note": "越过 15 秒 → 自动回 idle，输出归零",
+          "advance": 1001,
+          "expectLevel": { "light.main": 0 },
+          "expectState": "idle"
+        },
+        {
+          "note": "之后正常帧能把它叫回 active",
+          "send": { "v": 1, "c": "ping", "seq": 91 },
+          "expectExactly": [{ "c": "pong", "seq": 91 }],
+          "expectState": "active"
+        }
+      ]
+    },
+
+    {
+      "name": "12 看门狗复位路径不可被抢占",
+      "setup": { "dev": "ARGX-0001", "faults": { "resetHoldMs": 500 } },
+      "steps": [
+        { "connect": true, "expect": [{ "c": "ready" }] },
+        {
+          "send": { "v": 1, "c": "cue", "id": "light.main", "p": { "i": 1, "dur": 30000 }, "seq": 95 },
+          "expect": [{ "c": "ack", "seq": 95 }],
+          "expectLevel": { "light.main": 1 }
+        },
+        {
+          "note": "看门狗触发，进入复位保持窗口",
+          "advance": 15001,
+          "expectLevel": { "light.main": 0 },
+          "expectState": "idle"
+        },
+        {
+          "note": "复位窗口内来的高优先级 cue 一律丢弃——这条路径不许被抢占",
+          "send": { "v": 1, "c": "cue", "id": "light.main", "p": { "i": 1, "dur": 30000, "pri": 0 }, "seq": 96 },
+          "expectExactly": [{ "c": "ack", "seq": 96, "r": "dropped" }],
+          "expectLevel": { "light.main": 0 },
+          "expectState": "idle"
+        },
+        {
+          "note": "复位窗口结束，恢复正常接收",
+          "advance": 600,
+          "send": { "v": 1, "c": "cue", "id": "light.main", "p": { "i": 1, "dur": 30000 }, "seq": 97 },
+          "expectExactly": [{ "c": "ack", "seq": 97, "r": "applied" }],
+          "expectLevel": { "light.main": 1 }
+        }
+      ]
+    },
+
+    {
+      "name": "13 故障注入：不发 ready",
+      "setup": { "dev": "ARGX-0001", "faults": { "noReady": true } },
+      "steps": [
+        {
+          "note": "连接后什么都没发出来（ready 这一帧丢了）",
+          "connect": true,
+          "expectNone": true,
+          "expectState": "ready"
+        },
+        {
+          "note": "上层不该傻等：主动 hello 就能把 ready 要回来",
+          "send": { "v": 1, "c": "hello", "seq": 1 },
+          "expectExactly": [{ "c": "ready", "caps": { "out": ["light.main", "sound.beeper", "motion.vibrate", "env.relay"] } }]
+        },
+        {
+          "note": "会话其余部分完全不受影响",
+          "send": { "v": 1, "c": "ping", "seq": 2 },
+          "expectExactly": [{ "c": "pong", "seq": 2 }],
+          "expectState": "active"
+        }
+      ]
+    },
+
+    {
+      "name": "14 故障注入：延迟 3 秒应答",
+      "setup": { "dev": "ARGX-0001", "faults": { "delayMs": 3000 } },
+      "steps": [
+        {
+          "note": "connect 时 ready 也被延迟，此刻还没有任何帧",
+          "connect": true,
+          "expectNone": true
+        },
+        { "note": "差 1ms 还没到", "advance": 2999, "expectNone": true },
+        {
+          "note": "3 秒到了，ready 才出来",
+          "advance": 2,
+          "expectExactly": [{ "c": "ready" }]
+        },
+        {
+          "note": "cue 的 ack 同样延迟 3 秒——上层必须靠超时而不是靠崩溃来兜底",
+          "send": { "v": 1, "c": "cue", "id": "light.main", "p": { "i": 1, "dur": 5000 }, "seq": 5 },
+          "expectNone": true
+        },
+        {
+          "advance": 3000,
+          "expectExactly": [{ "c": "ack", "seq": 5, "r": "applied" }],
+          "expectLevel": { "light.main": 1 }
+        }
+      ]
+    },
+
+    {
+      "name": "15 故障注入：丢包",
+      "setup": { "dev": "ARGX-0001", "faults": { "dropSeqs": [11] } },
+      "steps": [
+        { "connect": true, "expect": [{ "c": "ready" }] },
+        {
+          "note": "seq=11 的 ack 被丢掉，前端会超时",
+          "send": { "v": 1, "c": "cue", "id": "light.main", "p": { "i": 0.4, "dur": 5000 }, "seq": 11 },
+          "expectNone": true,
+          "expectLevel": { "light.main": 0.4 }
+        },
+        {
+          "note": "但设备本身状态是对的，重发一个新 seq 立刻恢复",
+          "send": { "v": 1, "c": "cue", "id": "light.main", "p": { "i": 0.6, "dur": 5000 }, "seq": 12 },
+          "expectExactly": [{ "c": "ack", "seq": 12, "r": "preempted" }]
+        }
+      ]
+    },
+
+    {
+      "name": "16 故障注入：随机丢包（可复现）",
+      "setup": { "dev": "ARGX-0001", "rngSeed": 7, "spy": ["light.main"] },
+      "steps": [
+        { "connect": true, "expect": [{ "c": "ready" }] },
+        {
+          "note": "连上之后才开随机丢包（种子固定，跑多少次结果都一样）",
+          "faults": { "dropRate": 0.5 }
+        },
+        {
+          "note": "连发 8 条，一半左右会被丢掉；关键是不崩、状态不乱",
+          "send": { "v": 1, "c": "cue", "id": "light.main", "p": { "i": 0.1, "dur": 5000 }, "seq": 200 },
+          "expectCalls": { "light.main": 1 }
+        },
+        { "send": { "v": 1, "c": "cue", "id": "sound.beeper", "p": { "i": 1, "dur": 200 }, "seq": 201 } },
+        { "send": { "v": 1, "c": "cue", "id": "motion.vibrate", "p": { "i": 1, "dur": 200 }, "seq": 202 } },
+        { "send": { "v": 1, "c": "cue", "id": "env.relay", "p": { "i": 1, "dur": 200 }, "seq": 203 } },
+        { "send": { "v": 1, "c": "query", "seq": 204 } },
+        { "send": { "v": 1, "c": "ping", "seq": 205 } },
+        { "send": { "v": 1, "c": "cue", "id": "light.main", "p": { "i": 0.9, "dur": 5000 }, "seq": 206 } },
+        { "send": { "v": 1, "c": "ping", "seq": 207 } },
+        {
+          "note": "关掉故障后，会话立刻恢复正常（丢包没有留下任何坏状态）",
+          "clearFaults": true,
+          "send": { "v": 1, "c": "ping", "seq": 208 },
+          "expectExactly": [{ "c": "pong", "seq": 208 }],
+          "expectState": "active"
+        }
+      ]
+    },
+
+    {
+      "name": "17 故障注入：垃圾串扰",
+      "setup": { "dev": "ARGX-0001", "faults": { "garbage": true } },
+      "steps": [
+        {
+          "note": "每帧前后夹带非 { 开头的行，混在同一通道里",
+          "connect": true,
+          "expectExactly": [{ "c": "ready" }],
+          "expectGarbage": true
+        },
+        {
+          "note": "协议帧照样能被识别（调用方只处理 { 开头的行）",
+          "send": { "v": 1, "c": "cue", "id": "light.main", "p": { "i": 1, "dur": 3000 }, "seq": 300 },
+          "expectExactly": [{ "c": "ack", "seq": 300, "r": "applied" }],
+          "expectGarbage": true,
+          "expectLevel": { "light.main": 1 }
+        }
+      ]
+    },
+
+    {
+      "name": "18 故障注入：中途断连与重连",
+      "setup": { "dev": "ARGX-0001", "faults": { "autoDisconnectMs": 1000 } },
+      "steps": [
+        { "connect": true, "expect": [{ "c": "ready" }] },
+        {
+          "send": { "v": 1, "c": "cue", "id": "light.main", "p": { "i": 1, "dur": 30000 }, "seq": 400 },
+          "expectExactly": [{ "c": "ack", "seq": 400, "r": "applied" }],
+          "expectLevel": { "light.main": 1 }
+        },
+        {
+          "note": "线被拔了：立刻断连、输出归零，这是安全兜底不是可选项",
+          "advance": 1000,
+          "expectLevel": { "light.main": 0 },
+          "expectState": "disconnected"
+        },
+        {
+          "note": "断连期间发什么都进不来",
+          "send": { "v": 1, "c": "cue", "id": "light.main", "p": { "i": 1, "dur": 5000 }, "seq": 401 },
+          "expectNone": true
+        },
+        {
+          "note": "重新插上：重发 ready，会话重建",
+          "connect": true,
+          "expectExactly": [{ "c": "ready" }],
+          "expectState": "ready"
+        },
+        {
+          "send": { "v": 1, "c": "cue", "id": "light.main", "p": { "i": 0.5, "dur": 5000 }, "seq": 402 },
+          "expectExactly": [{ "c": "ack", "seq": 402, "r": "applied" }],
+          "expectLevel": { "light.main": 0.5 }
+        }
+      ]
+    },
+
+    {
+      "name": "19 反向通道：input 事件上报",
+      "setup": { "dev": "ARGX-0001", "inputs": ["switch.a"] },
+      "steps": [
+        {
+          "note": "注册了输入能力，caps.in 里就有它（本期固件不注册任何输入，所以是空的）",
+          "connect": true,
+          "expectExactly": [
+            {
+              "c": "ready",
+              "caps": {
+                "out": ["light.main", "sound.beeper", "motion.vibrate", "env.relay"],
+                "in": ["switch.a"]
+              }
+            }
+          ]
+        },
+        {
+          "note": "手动注入一次按压 → 设备向上报 input 帧",
+          "injectInput": { "id": "switch.a", "e": "press", "v": 1 },
+          "expectExactly": [{ "c": "input", "id": "switch.a", "e": "press", "v": 1 }]
+        },
+        {
+          "note": "松开",
+          "injectInput": { "id": "switch.a", "e": "release", "v": 0 },
+          "expectExactly": [{ "c": "input", "id": "switch.a", "e": "release", "v": 0 }]
+        },
+        {
+          "note": "没注册的输入 id → err，不是崩溃",
+          "injectInput": { "id": "switch.zzz", "e": "press", "v": 1 },
+          "expectExactly": [{ "c": "err", "code": "unknown_input", "msg": "switch.zzz" }]
+        }
+      ]
+    }
+  ]
+}
