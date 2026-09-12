@@ -571,8 +571,9 @@
     },
     tension: {
       label: '紧张',
-      desc: '灯光压暗，配"有东西不对劲"的段落',
-      cues: [{ id: 'light.main', p: { i: 0.1, ramp: 250, pri: PRI.ambient } }]
+      desc: '灯光缓缓压暗，配"有东西不对劲"的段落',
+      // ramp 给足 1.5 秒：250ms 那种是"闪一下"，读起来像故障而不是气氛
+      cues: [{ id: 'light.main', p: { i: 0.1, ramp: 1500, pri: PRI.ambient } }]
     },
     reveal: {
       label: '揭示',
