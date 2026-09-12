@@ -148,16 +148,25 @@ argx/
 ### 常用命令
 
 ```bash
-# 跑标准帧序列（唯一的一键验证，零依赖）
-node tests/run.js                 # 全部 19 个场景
+# 跑标准帧序列（协议一致性，零依赖）
+node tests/run.js                 # 全部 22 个场景
 node tests/run.js -v              # 额外打印每步收到的帧
 node tests/run.js --scenario=11   # 只跑名字含 "11" 的场景
+
+# 控制台（阶段二产物）
+cd console
+npm install
+npm run dev                       # http://localhost:5173
+npm run build                     # 类型检查 + 打包 → dist/（纯静态）
+node scripts/smoke.mjs            # 端到端冒烟，需先 npm run dev（21 项）
 
 # 编译固件（本机没有 g++/clang，C++ 只能靠这条）
 CLI=/c/Users/msa/.argx-tools/arduino-cli.exe
 $CLI compile -b esp32:esp32:esp32s3 firmware/argx_mvp    # 目标板 S3
 $CLI compile -b esp32:esp32:esp32   firmware/argx_mvp    # 老款 WROOM-32E
 ```
+
+控制台的分区可以直接用 hash 打开：`#simulator` `#devices` `#timeline` `#works`。
 
 `arduino-cli.exe` 故意放在仓库外（`C:\Users\msa\.argx-tools\`），不要提交进仓库。
 esp32 core 3.3.11 已装好，不需要再 `core install`。
@@ -168,9 +177,13 @@ esp32 core 3.3.11 已装好，不需要再 `core install`。
 |---|---|---|
 | `protocol/` | 协议规范，**唯一权威**。两端实现都从它派生 | 全部 |
 | `firmware/argx_mvp/` | Arduino 草稿目录。会话层 + 能力层 + 入口 | — |
-| `device/` | 虚拟设备，协议的第二实现，也是阶段二模拟器的底座 | 阶段二 |
+| `device/` | 虚拟设备，协议的第二实现，也是控制台模拟器的底座 | 阶段二 |
 | `tests/` | 标准帧序列 + 跑它的命令行脚本 | 全部 |
-| `console/` `sdk/` `demo/` | 阶段二、三的产物，本阶段为空 | — |
+| `console/` | 中枢控制台（Vite + React + TS + Tailwind）。模拟器**直接引用** `device/virtual_device.js`，不复制不重写 | 阶段三的 Demo 挂在这里 |
+| `sdk/` `demo/` | 阶段三的产物，目前为空 | — |
+
+控制台里三块的分工：`transports/`（通道）、`core/`（会话层与状态，**不依赖框架**，
+阶段三的 SDK 可以直接搬）、`panels/` 与 `simulator/`（界面）。
 
 改协议的顺序永远是：先改 `protocol/`，再改 `firmware/` 与 `device/`，最后补 `tests/`。
 
@@ -190,6 +203,15 @@ esp32 core 3.3.11 已装好，不需要再 `core install`。
    `\n`，代码里已按 `\r` 可容忍处理，不用管这些 warning。
 7. **虚拟设备的 `send()`**：传对象自动补 `\n`（发一帧）；传字符串原样灌入不补
    （测垃圾串扰与半行分片）。测试里发垃圾行要自己带 `\n`，否则会粘到下一帧上。
+   **传输层调用它时必须自己补换行**（`console/src/transports/mock.ts` 里就有这一行，
+   漏了整个链路会静默失效：界面正常、帧也发出去了，装置什么都不做）。
+8. **虚拟设备是 UMD，没有 ESM 导出**。控制台用副作用导入 + `globalThis` 桥接它
+   （`console/src/core/virtualDevice.ts`），导入路径故意不写 `.js` 后缀，
+   这样 TS 会认旁边的 `device/virtual_device.d.ts`。别再给它加 ESM 导出，
+   那会动到阶段一已验收的产物。
+9. **控制台的 node_modules 与 dist 已进 .gitignore**，别用 `git add -A` 一把梭。
+10. **模拟器的可视化数据全部来自 `device.getState()`**，界面上不另算协议状态。
+    改协议时只要那份文件的 state 形状对，界面就跟着对。
 
 ### 决策记录
 
@@ -201,3 +223,7 @@ esp32 core 3.3.11 已装好，不需要再 `core install`。
 - 所有被正常处理的 cue 都回 ack，用 `r` 字段区分 applied/preempted/dup/dropped
 - `dur` 缺省 = 30000（即 TTL 上限），防止缺省效果永久占用输出
 - 连点去重纳入参数比较，否则氛围播放中途调不了亮度
+- `batch` 的原子性拆两半：校验原子（任一不合法整批拒绝），执行各自仲裁
+- `hold` 不绕过看门狗：放开的是 30 秒 TTL，不是安全兜底
+- 控制台的会话层不依赖框架，阶段三的 SDK 直接搬它，别写第三份
+- 模拟器进来自动连虚拟装置；可视化用 rAF 读 getState()，不进全局 store
