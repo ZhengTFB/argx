@@ -1,0 +1,88 @@
+@import 'tailwindcss';
+
+/*
+ * 配色与动画自己定的，以信息密度和可读性优先。
+ * 深色底：这套界面长时间盯着看，且要和"装置在发光"这件事形成对比。
+ */
+@theme {
+  --color-ink-950: #0b0e14;
+  --color-ink-900: #11151d;
+  --color-ink-800: #182029;
+  --color-ink-700: #232c38;
+  --color-ink-600: #3a4757;
+  --color-ink-400: #7c8b9e;
+  --color-ink-200: #c2cddb;
+  --color-argx-500: #35d0ba;
+  --color-argx-400: #5ce0cc;
+  --color-warn-400: #f5b544;
+  --color-danger-400: #f2705d;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--color-ink-950);
+  color: var(--color-ink-200);
+  font-family: ui-sans-serif, system-ui, 'Segoe UI', 'Microsoft YaHei', sans-serif;
+  font-size: 14px;
+}
+
+/* 时间线滚动条细一点，省地方 */
+.thin-scroll::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+.thin-scroll::-webkit-scrollbar-thumb {
+  background: var(--color-ink-700);
+  border-radius: 4px;
+}
+
+/* ---- 虚拟装置的可视化动画 ---- */
+
+/* 声音：向外扩散的涟漪 */
+@keyframes argx-ripple {
+  0% {
+    transform: scale(0.4);
+    opacity: 0.7;
+  }
+  100% {
+    transform: scale(1.6);
+    opacity: 0;
+  }
+}
+.argx-ripple {
+  animation: argx-ripple 1.1s ease-out infinite;
+}
+
+/* 振动：左右抖动，幅度由 --argx-shake 控制 */
+@keyframes argx-shake {
+  0%,
+  100% {
+    transform: translateX(calc(var(--argx-shake) * -1));
+  }
+  50% {
+    transform: translateX(var(--argx-shake));
+  }
+}
+.argx-shake {
+  animation: argx-shake 0.08s linear infinite;
+}
+
+/* 心跳：连接正常时状态点轻微呼吸 */
+@keyframes argx-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+.argx-pulse {
+  animation: argx-pulse 2s ease-in-out infinite;
+}
