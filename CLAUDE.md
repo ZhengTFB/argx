@@ -133,7 +133,7 @@ argx/
 进度总览：@docs/PROGRESS.md
 
 当前阶段任务书（阶段推进后，把这一行改成对应文件）：
-@docs/ARGX-01-协议与设备端.md
+@docs/ARGX-03-Demo与SDK.md
 
 > 同一会话内切换阶段时，本文件的修改不会立即生效——此时直接用 Read 工具打开新阶段任务书。
 
@@ -148,17 +148,21 @@ argx/
 ### 常用命令
 
 ```bash
-# 跑标准帧序列（协议一致性，零依赖）
-node tests/run.js                 # 全部 22 个场景
+# 零依赖的那几条（不需要装任何东西、不需要起服务）
+node tests/run.js                 # 协议一致性，全部 22 个场景 / 213 项
 node tests/run.js -v              # 额外打印每步收到的帧
 node tests/run.js --scenario=11   # 只跑名字含 "11" 的场景
+node tests/sdk_smoke.js           # SDK 接虚拟设备真跑一遍（23 项）
+node tests/agents_guide.js        # 照着 sdk/AGENTS.md 抄一遍能不能跑（12 项）
+node tests/demo_smoke.mjs         # Demo 端到端，自带静态服务器（26 项）
 
-# 控制台（阶段二产物）
+# 控制台（阶段二产物，阶段三的界面也在里面）
 cd console
 npm install
-npm run dev                       # http://localhost:5173
-npm run build                     # 类型检查 + 打包 → dist/（纯静态）
-node scripts/smoke.mjs            # 端到端冒烟，需先 npm run dev（21 项）
+npm run dev                       # http://localhost:5173（默认进小白控制台）
+npm run build                     # 类型检查 + 打包 → dist/（纯静态，含 demo/ 与 sdk/）
+node scripts/smoke.mjs            # 专业控制台端到端，需先 npm run dev（26 项）
+node scripts/smoke-basic.mjs      # 小白控制台端到端，需先 npm run dev（34 项）
 
 # 编译固件（本机没有 g++/clang，C++ 只能靠这条）
 CLI=/c/Users/msa/.argx-tools/arduino-cli.exe
@@ -166,7 +170,12 @@ $CLI compile -b esp32:esp32:esp32s3 firmware/argx_mvp    # 目标板 S3
 $CLI compile -b esp32:esp32:esp32   firmware/argx_mvp    # 老款 WROOM-32E
 ```
 
-控制台的分区可以直接用 hash 打开：`#simulator` `#devices` `#timeline` `#works`。
+控制台的分区可以直接用 hash 打开。两套界面各占自己的 hash 空间，互不重叠：
+
+- 小白控制台（默认）：`#home` `#device` `#library` `#help` `#play:<作品 id>`
+- 专业控制台：`#overview` `#devices` `#works` `#simulator` `#timeline` `#docs` `#creator`
+
+带 hash 打开就直接进对应的那一套，所以老链接（`#simulator` 之类）没失效。
 
 `arduino-cli.exe` 故意放在仓库外（`C:\Users\msa\.argx-tools\`），不要提交进仓库。
 esp32 core 3.3.11 已装好，不需要再 `core install`。
@@ -179,13 +188,22 @@ esp32 core 3.3.11 已装好，不需要再 `core install`。
 | `firmware/argx_mvp/` | Arduino 草稿目录。会话层 + 能力层 + 入口 | — |
 | `device/` | 虚拟设备，协议的第二实现，也是控制台模拟器的底座 | 阶段二 |
 | `tests/` | 标准帧序列 + 跑它的命令行脚本 | 全部 |
-| `console/` | 中枢控制台（Vite + React + TS + Tailwind）。模拟器**直接引用** `device/virtual_device.js`，不复制不重写 | 阶段三的 Demo 挂在这里 |
-| `sdk/` `demo/` | 阶段三的产物，目前为空 | — |
+| `console/` | 中枢控制台（Vite + React + TS + Tailwind）。模拟器**直接引用** `device/virtual_device.js`，不复制不重写 | 两套界面都在这里 |
+| `sdk/` | 网页 SDK，零依赖纯原生 JS + `AGENTS.md`（给 AI 看的集成规范） | 全部第三方作品 |
+| `demo/` | 示例作品。`script.json` 是剧本数据，控制台的 ARG 库也读同一份 | 小白控制台的播放器 |
 
-控制台里三块的分工：`transports/`（通道）、`core/`（会话层与状态，**不依赖框架**，
-阶段三的 SDK 可以直接搬）、`panels/` 与 `simulator/`（界面）。
+控制台里几块的分工：
+
+- `transports/`（通道）、`core/`（会话层与状态，**不依赖框架**）
+- `panels/` 与 `simulator/`（专业版界面，深色）
+- `views/pro/`（专业版外壳）与 `views/basic/`（小白版，浅色）——两套界面各占一层
+- `core/sdk.ts` 与 `core/sdkTransports.ts`：把阶段三的 SDK 接进来，小白版整个建在它上面
 
 改协议的顺序永远是：先改 `protocol/`，再改 `firmware/` 与 `device/`，最后补 `tests/`。
+
+**SDK 与 Demo 的位置关系**：`demo/index.html` 只加载 `../sdk/argx.js`，
+`console/vite.config.ts` 里那个插件负责让 dev server 与构建产物都能拿到这两个目录
+（`/demo/*` 与 `/sdk/*`）。所以这两个目录任何时候都不能往 `console/` 里复制一份。
 
 ### 已知坑
 
@@ -212,6 +230,20 @@ esp32 core 3.3.11 已装好，不需要再 `core install`。
 9. **控制台的 node_modules 与 dist 已进 .gitignore**，别用 `git add -A` 一把梭。
 10. **模拟器的可视化数据全部来自 `device.getState()`**，界面上不另算协议状态。
     改协议时只要那份文件的 state 形状对，界面就跟着对。
+11. **SDK 是单例**（一个页面一个 `ARGX`）。小白控制台只用一个会话，所以够用；
+    将来要在一个页面里同时接两台装置，得先给它加一个实例化入口。
+12. **同一条通道上挂了两个会话**：小白控制台自己的 SDK 会话，和 iframe 里 Demo 的。
+    所以 `sdkTransports.ts` 里的 `connect()` 必须幂等——串口的 connect 是
+    `requestPort()`，第二次调用既会二次弹窗、又不在用户的点击调用栈里，浏览器直接拒。
+13. **Demo 的 iframe 顺序不能反**：先把通道挂到 `window.ARGX_HOST_TRANSPORT`，
+    再给 iframe 设 `src`。反过来的话作品会先按"没有宿主通道"初始化（自己找串口）。
+14. **`demo/` 的剧本节点 cue 是"进入这一幕时触发"**。
+    所以 cue 要挂在本节点，不要挂在上一节点——`reveal` 那种"做成了什么"的 cue
+    挂在密码那一幕，会变成一进这一幕灯就闪、玩家还没输密码。
+15. **自检那四个绿勾必须是"回查到了"才亮**（`ARGX.state()` 有应答）。
+    绝不能改成"我们发过了所以算通过"——装置拔了线那样也会全绿，自检就白做了。
+16. **dev server 端口被占时 Vite 会自己换一个**（5173 被占就用 5174），
+    而 `smoke.mjs` 默认打 5173。跑冒烟前先确认端口，别对着一个空端口跑。
 
 ### 决策记录
 
@@ -227,3 +259,17 @@ esp32 core 3.3.11 已装好，不需要再 `core install`。
 - `hold` 不绕过看门狗：放开的是 30 秒 TTL，不是安全兜底
 - 控制台的会话层不依赖框架，阶段三的 SDK 直接搬它，别写第三份
 - 模拟器进来自动连虚拟装置；可视化用 rAF 读 getState()，不进全局 store
+
+阶段三（SDK / Demo / 小白控制台）：
+
+- SDK 的会话层是 `console/src/core/session.ts` 的逐条翻译，不是新写一套；改一个必须改另一个
+- SDK 的传输层收**对象**、自己序列化与定界（补换行那类契约要能被漏掉，干脆让它不存在）
+- 作者只写事件名（`ARGX.fire('reveal')`），不写能力 id 和参数；优先级在词表里配好
+- `fire()` 按装置的能力声明过滤再发——不过滤的话 `batch` 的校验原子性会把整条事件丢掉
+- 没装置、连不上、`file://`：一律静默降级，cue 打到 console，绝不抛错也绝不弹窗
+- 装置只负责演，剧情判定一行都不许依赖它（AGENTS.md 第 4 节，这是硬性要求）
+- 小白控制台整个建在 SDK 上，SDK 的第一个用户就是自己
+- 小白版与专业版是两条独立连接，各连各的装置，互不干扰
+- 作品播放器嵌真页面（iframe + 宿主通道），不在 React 里重写一份剧情界面
+- 小白版的四路状态全部来自 `ARGX.state()` 回查，界面不本地记账
+- 专业版一行没改：只把 `App.tsx` 主体整体搬成 `views/pro/ProApp.tsx`
