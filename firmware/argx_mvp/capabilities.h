@@ -17,17 +17,22 @@
 // #define 传不过去，所以统一放在这里，.ino 第一行就 include 本文件。
 // 改接线 = 只改这里。详细接线见 WIRING.md。
 // ---------------------------------------------------------------------------
+// 这四个引脚在 S3 和经典 ESP32 上都是**安全**的：
+//   - 避开了 strapping pin（GPIO0/2/5/12/15，接负载会影响下载模式）
+//   - 避开了 GPIO6~11（经典 ESP32 上接内部 flash，接东西直接起不来）
+//   - 避开了 GPIO34~39（经典 ESP32 只进不出）
+//   - 避开了 GPIO33~37（S3 的 N8R8 用它们接八线 PSRAM）
 #ifndef ARGX_PIN_LIGHT
 #define ARGX_PIN_LIGHT 4 // 主输出：LED / LED 灯带（PWM）
 #endif
 #ifndef ARGX_PIN_SOUND
-#define ARGX_PIN_SOUND 5 // 有源或无源蜂鸣器（PWM，2.7kHz）
+#define ARGX_PIN_SOUND 18 // 有源或无源蜂鸣器（PWM，2.7kHz）
 #endif
 #ifndef ARGX_PIN_VIBRATE
-#define ARGX_PIN_VIBRATE 6 // 振动马达（PWM，经三极管）
+#define ARGX_PIN_VIBRATE 17 // 振动马达（PWM，经三极管）
 #endif
 #ifndef ARGX_PIN_RELAY
-#define ARGX_PIN_RELAY 7 // 继电器模块（数字，高电平吸合）
+#define ARGX_PIN_RELAY 16 // 继电器模块（数字，高电平吸合）
 #endif
 
 // 把四种内置能力注册进 node。
