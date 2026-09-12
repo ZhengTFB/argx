@@ -27,7 +27,8 @@
     LINK_LOST_MS: 10000,
     WATCHDOG_MS: 15000,
     MAX_EFFECT_MS: 30000,
-    MAX_LINE: 512
+    MAX_LINE: 512,
+    MAX_BATCH: 8
   };
 
   var PRI = { critical: 0, high: 1, normal: 2, ambient: 3 };
@@ -109,7 +110,7 @@
   VirtualDevice.prototype._newCap = function (id, kind) {
     return {
       id: id, kind: kind, handler: null,
-      active: false, pri: PRI.normal, level: 0, target: 0, rampStart: 0,
+      active: false, hold: false, pri: PRI.normal, level: 0, target: 0, rampStart: 0,
       startedAt: 0, expiresAt: 0, dur: 0, ramp: 0,
       seq: null, lastSeq: null, hasLastSeq: false
     };
@@ -224,7 +225,8 @@
     for (var k = 0; k < this._caps.length; k++) {
       var c = this._caps[k];
       if (c.kind !== 'out' || !c.active) continue;
-      if (this._t >= c.expiresAt) { this._release(c, true); continue; }
+      // hold 的效果没有 TTL，只能被抢占/reset/看门狗/断连结束（PROTOCOL §7.1）
+      if (!c.hold && this._t >= c.expiresAt) { this._release(c, true); continue; }
       var elapsed = this._t - c.startedAt;
       var level = c.target;
       if (c.ramp > 0 && elapsed < c.ramp) {
@@ -267,6 +269,7 @@
     switch (msg.c) {
       case 'hello': this.sendReady(); break;
       case 'cue': this._cmdCue(msg, seq); break;
+      case 'batch': this._cmdBatch(msg, seq); break;
       case 'query': this._sendState(); break;
       case 'cfg': this._cmdCfg(msg); this._sendAck(seq, 'applied'); break;
       case 'ping': this._sendPong(seq); break;
@@ -284,36 +287,88 @@
   // =========================================================================
   // cue 仲裁 —— 顺序与固件 cmdCue() 逐条对应，不可调换
   // =========================================================================
-  VirtualDevice.prototype._cmdCue = function (msg, seq) {
-    var id = msg.id;
-    if (typeof id !== 'string' || !id) { this._sendErr('bad_frame', 'cue without id', seq); return; }
-
-    // 参数先给缺省值，越界只钳制不报错（降级优于报错）
-    var p = msg.p || {};
-    var level = typeof p.i === 'number' ? clamp(p.i, 0, 1) : 1.0;
+  // 解析一条 cue。独立 cue 与 batch 里的每一条共用这个函数，
+  // 字段语义不可能漂移（与固件 parseCueSpec 对应）。
+  VirtualDevice.prototype._parseCueSpec = function (obj) {
+    var p = obj.p || {};
+    var hold = p.hold === true || p.hold === 1;
     var dur = typeof p.dur === 'number' ? clamp(p.dur, 0, P.MAX_EFFECT_MS) : P.MAX_EFFECT_MS;
     var ramp = typeof p.ramp === 'number' ? clamp(p.ramp, 0, P.MAX_EFFECT_MS) : 0;
-    var pri = typeof p.pri === 'number' ? clamp(p.pri | 0, 0, 3) : PRI.normal;
-    if (ramp > dur) ramp = dur;
+    if (ramp > dur) ramp = dur; // 常驻时 dur 仍是缺省的 30000，渐变的头上限也就有了
+    return {
+      id: obj.id,
+      level: typeof p.i === 'number' ? clamp(p.i, 0, 1) : 1.0,
+      dur: hold ? 0 : dur, // 常驻：dur 不再有任何意义
+      ramp: ramp,
+      pri: typeof p.pri === 'number' ? clamp(p.pri | 0, 0, PRI.ambient) : PRI.normal,
+      hold: hold
+    };
+  };
 
-    var c = this._find(id, 'out');
-    if (!c) { this._sendErr('unknown_id', id, seq); return; }
+  VirtualDevice.prototype._sameEffect = function (c, s) {
+    return c.ramp === s.ramp && c.dur === s.dur && c.hold === s.hold &&
+           Math.abs(c.target - s.level) < 0.0001;
+  };
 
-    // 1. 复位中 → 丢弃
-    if (this._resetting) { this._sendAck(seq, 'dropped'); return; }
-    // 2. 同 id 同 seq → 幂等
-    if (c.hasLastSeq && c.lastSeq === seq) { this._sendAck(seq, 'dup'); return; }
-    // 3. 同 id、同优先级、同参数、仍在生效期内 → 连点，丢弃
-    //    （参数比较用容差，与固件 sameEffect() 一致）
-    if (c.active && c.pri === pri && c.dur === dur && c.ramp === ramp &&
-        Math.abs(c.target - level) < 0.0001) {
-      c.lastSeq = seq; c.hasLastSeq = true;
-      this._sendAck(seq, 'dup');
+  VirtualDevice.prototype._cmdCue = function (msg, seq) {
+    if (typeof msg.id !== 'string' || !msg.id) {
+      this._sendErr('bad_frame', 'cue without id', seq);
       return;
+    }
+    var s = this._parseCueSpec(msg);
+    if (!this._find(s.id, 'out')) { this._sendErr('unknown_id', s.id, seq); return; }
+    this._sendAck(seq, this._applyCue(s, seq));
+  };
+
+  // batch：一帧触发多个效果。校验是原子的（任一不合法整批不执行），
+  // 执行阶段各自走正常仲裁，所有条目共用 this._t（PROTOCOL §4.3）。
+  VirtualDevice.prototype._cmdBatch = function (msg, seq) {
+    var cues = msg.p && msg.p.cues;
+    if (!Array.isArray(cues)) { this._sendErr('bad_frame', 'batch without p.cues', seq); return; }
+    if (cues.length === 0) { this._sendErr('bad_frame', 'batch is empty', seq); return; }
+    if (cues.length > P.MAX_BATCH) { this._sendErr('bad_frame', 'batch too large', seq); return; }
+
+    var specs = [];
+    for (var i = 0; i < cues.length; i++) {
+      var it = cues[i];
+      if (!it || typeof it !== 'object' || typeof it.id !== 'string' || !it.id) {
+        this._sendErr('bad_frame', 'batch item without id', seq);
+        return;
+      }
+      if (!this._find(it.id, 'out')) {
+        this._sendErr('unknown_id', it.id, seq); // 整批拒绝，一条都不执行
+        return;
+      }
+      specs.push(this._parseCueSpec(it));
+    }
+
+    var res = {};
+    var seen = {};
+    for (var k = 0; k < specs.length; k++) {
+      var r = this._applyCue(specs[k], seq); // 同一帧共用一个时间戳
+      res[specs[k].id] = r;
+      seen[r] = true;
+    }
+    var kinds = Object.keys(seen).length;
+    var agg = kinds > 1 ? 'partial' : Object.keys(seen)[0];
+    this._sendAck(seq, agg, res);
+  };
+
+  // 执行一条已通过前置校验的 cue，返回结果字符串（与 ack 的 r 取值一致）
+  VirtualDevice.prototype._applyCue = function (s, seq) {
+    var c = this._find(s.id, 'out');
+    if (!c) return 'unknown_id';
+
+    // --- 仲裁（PROTOCOL §10，顺序不可调换）---
+    if (this._resetting) return 'dropped'; // 1. 复位中
+    if (c.hasLastSeq && c.lastSeq === seq) return 'dup'; // 2. 同 id 同 seq 幂等
+    if (c.active && c.pri === s.pri && this._sameEffect(c, s)) {
+      c.lastSeq = seq; c.hasLastSeq = true; // 3. 连点
+      return 'dup';
     }
 
     var wasActive = c.active;
-    if (pri === PRI.critical) {
+    if (s.pri === PRI.critical) {
       // critical 执行前清空所有输出（含自己）
       for (var i = 0; i < this._caps.length; i++) {
         if (this._caps[i].kind === 'out' && this._caps[i].active) {
@@ -321,28 +376,28 @@
           wasActive = true;
         }
       }
-    } else if (c.active && pri > c.pri) {
-      this._sendAck(seq, 'dropped'); // 低优先级不许打断高优先级
-      return;
+    } else if (c.active && s.pri > c.pri) {
+      return 'dropped'; // 4. 低优先级不许打断高优先级
     }
 
     c.rampStart = c.level; // 从当前强度开始渐变，不跳变
-    c.pri = pri;
-    c.target = level;
-    c.dur = dur;
-    c.ramp = ramp;
+    c.pri = s.pri;
+    c.target = s.level;
+    c.dur = s.dur;
+    c.ramp = s.ramp;
+    c.hold = s.hold;
     c.active = true;
     c.startedAt = this._t;
-    c.expiresAt = this._t + dur;
+    c.expiresAt = this._t + s.dur; // hold 时不检查这个字段，见 _tick
     c.seq = seq;
     c.lastSeq = seq;
     c.hasLastSeq = true;
 
-    this._apply(c, ramp > 0 ? c.rampStart : level, true, false, seq);
-    this._log('cue ' + id + ' i=' + level.toFixed(2) + ' dur=' + dur +
-              ' ramp=' + ramp + ' pri=' + PRI_NAME[pri] +
+    this._apply(c, s.ramp > 0 ? c.rampStart : s.level, true, false, seq);
+    this._log('cue ' + s.id + ' i=' + s.level.toFixed(2) + ' dur=' + s.dur +
+              ' ramp=' + s.ramp + ' pri=' + PRI_NAME[s.pri] + (s.hold ? ' hold' : '') +
               ' -> ' + (wasActive ? 'preempted' : 'applied'));
-    this._sendAck(seq, wasActive ? 'preempted' : 'applied');
+    return wasActive ? 'preempted' : 'applied';
   };
 
   VirtualDevice.prototype._apply = function (c, level, start, release, seq) {
@@ -358,6 +413,7 @@
   VirtualDevice.prototype._release = function (c, notify) {
     if (notify && c.active) this._apply(c, 0, false, true, c.seq);
     c.active = false;
+    c.hold = false;
     c.level = 0; c.target = 0; c.rampStart = 0; c.ramp = 0; c.dur = 0;
   };
 
@@ -386,8 +442,11 @@
     });
   };
 
-  VirtualDevice.prototype._sendAck = function (seq, result) {
-    this._emit({ v: P.VERSION, c: 'ack', seq: seq, r: result });
+  // res 只在 batch 的 ack 上出现（逐条结果），普通 cue 不带
+  VirtualDevice.prototype._sendAck = function (seq, result, res) {
+    var f = { v: P.VERSION, c: 'ack', seq: seq, r: result };
+    if (res) f.res = res;
+    this._emit(f);
   };
 
   VirtualDevice.prototype._sendPong = function (seq) {
@@ -406,7 +465,8 @@
       out[c.id] = {
         i: Math.round(c.level * 100) / 100,
         pri: c.pri,
-        ttl: c.active ? Math.max(0, c.expiresAt - this._t) : 0
+        // ttl = -1 表示常驻（正常效果的 TTL 恒 >= 0，所以没有歧义）
+        ttl: c.hold ? -1 : (c.active ? Math.max(0, c.expiresAt - this._t) : 0)
       };
     }
     this._emit({
@@ -491,8 +551,8 @@
       if (c.kind === 'out') {
         outIds.push(c.id);
         out[c.id] = {
-          i: c.level, active: c.active, pri: c.pri,
-          ttl: c.active ? Math.max(0, c.expiresAt - this._t) : 0
+          i: c.level, active: c.active, pri: c.pri, hold: c.hold,
+          ttl: c.hold ? -1 : (c.active ? Math.max(0, c.expiresAt - this._t) : 0)
         };
       } else {
         inIds.push(c.id);
