@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>深夜自习室 — ARGX 示例作品</title>
+
+<!--
+  ARGX 示例作品：一个"故事溢出到现实"的最小样子。
+
+  页面本身就是一个普通网页——剧情、画面、判定全在这里。
+  装置只做一件事：把剧情推到某个时刻时，让玩家的房间跟着动一下。
+  所以断网、拔线、没买装置，这一页都能从头玩到尾。
+
+  用本地服务器打开（不要双击文件，file:// 下浏览器禁掉串口）：
+      npx serve            # 或者 python -m http.server 8000
+  然后访问它给的 http://localhost:xxxx/demo/
+-->
+<style>
+  :root {
+    --ink-950: #0b0e14;
+    --ink-900: #11151d;
+    --ink-800: #182029;
+    --ink-700: #232c38;
+    --ink-600: #3a4757;
+    --ink-400: #7c8b9e;
+    --ink-200: #c2cddb;
+    --argx: #35d0ba;
+    --warn: #f5b544;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    background: radial-gradient(120% 90% at 50% 0%, #131a24 0%, var(--ink-950) 60%);
+    color: var(--ink-200);
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, 'Cascadia Mono', monospace;
+    font-size: 14px;
+    line-height: 1.85;
+  }
+
+  #argx-demo {
+    width: 100%;
+    max-width: 720px;
+  }
+
+  .term {
+    border: 1px solid var(--ink-700);
+    border-radius: 10px;
+    background: rgba(17, 21, 29, 0.92);
+    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.55);
+    overflow: hidden;
+  }
+
+  .term-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 9px 14px;
+    border-bottom: 1px solid var(--ink-800);
+    background: var(--ink-900);
+  }
+
+  .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--ink-600); }
+
+  .term-title {
+    margin-left: 6px;
+    color: var(--ink-400);
+    font-size: 12px;
+    letter-spacing: 0.04em;
+  }
+
+  .term-body { padding: 22px 20px 20px; min-height: 300px; }
+
+  .lines p {
+    margin: 0 0 12px;
+    animation: fade 420ms ease-out both;
+  }
+  .lines p.quote { color: var(--argx); }
+  .lines p.note { color: var(--ink-400); font-size: 13px; }
+
+  @keyframes fade {
+    from { opacity: 0; transform: translateY(4px); }
+    to { opacity: 1; transform: none; }
+  }
+
+  .caret {
+    display: inline-block;
+    width: 8px;
+    height: 15px;
+    margin-left: 2px;
+    background: var(--argx);
+    vertical-align: -2px;
+    animation: blink 1.1s steps(1) infinite;
+  }
+  @keyframes blink { 50% { opacity: 0; } }
+
+  .actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 20px;
+    padding-top: 16px;
+    border-top: 1px solid var(--ink-800);
+  }
+
+  button {
+    font: inherit;
+    padding: 7px 16px;
+    border-radius: 6px;
+    border: 1px solid var(--ink-600);
+    background: var(--ink-800);
+    color: var(--ink-200);
+    cursor: pointer;
+    transition: background 120ms, border-color 120ms;
+  }
+  button:hover { background: var(--ink-700); }
+  button.primary { border-color: var(--argx); color: var(--argx); }
+  button.primary:hover { background: rgba(53, 208, 186, 0.12); }
+
+  input[type="text"] {
+    font: inherit;
+    width: 140px;
+    padding: 7px 12px;
+    border-radius: 6px;
+    border: 1px solid var(--ink-600);
+    background: var(--ink-950);
+    color: var(--argx);
+    letter-spacing: 0.3em;
+    outline: none;
+  }
+  input[type="text"]:focus { border-color: var(--argx); }
+
+  .footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-top: 12px;
+    padding: 0 4px;
+    color: var(--ink-600);
+    font-size: 11.5px;
+  }
+
+  .device { display: flex; align-items: center; gap: 7px; }
+  .led {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--ink-600);
+  }
+  .led.on { background: var(--argx); box-shadow: 0 0 8px var(--argx); }
+
+  .hint {
+    max-width: 720px;
+    margin: 14px auto 0;
+    padding: 12px 14px;
+    border: 1px solid rgba(245, 181, 68, 0.45);
+    border-radius: 8px;
+    background: rgba(245, 181, 68, 0.08);
+    color: var(--warn);
+    font-size: 12.5px;
+    line-height: 1.7;
+  }
+
+  @media (max-width: 560px) {
+    body { font-size: 13px; }
+    .term-body { padding: 18px 15px; }
+  }
+</style>
+</head>
+<body>
+
+<div id="argx-demo"></div>
+<div id="argx-hint" hidden></div>
+
+<!-- 就这两行：SDK 加剧本。整个作品没有任何构建步骤 -->
+<script src="../sdk/argx.js"></script>
+<script src="game.js"></script>
+
+</body>
+</html>
