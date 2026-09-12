@@ -16,6 +16,33 @@
   --color-argx-400: #5ce0cc;
   --color-warn-400: #f5b544;
   --color-danger-400: #f2705d;
+
+  /*
+   * 浅色一套，只给小白控制台用（阶段三）。
+   * 深色那套是给"盯着协议看很久"的人用的，而小白版的使用者是第一次打开、
+   * 想看看这东西怎么玩的人——白底、少字、大按钮。
+   * 命名和 ink-* 不重叠，所以两套界面互不影响。
+   * 青色比深色版的 argx-500 深一档：白底上要保证对比度够。
+   */
+  --color-paper-0: #ffffff;
+  --color-paper-50: #f7f8fa;
+  --color-paper-100: #f0f2f6;
+  --color-paper-200: #e5e9ef;
+  --color-line-300: #dfe3ea;
+  --color-line-400: #c6ccd6;
+  --color-fg-900: #1b2430;
+  --color-fg-700: #3d4854;
+  --color-fg-600: #5c6775;
+  --color-fg-400: #8b95a3;
+  --color-brand-700: #0b7d6f;
+  --color-brand-600: #0e9280;
+  --color-brand-500: #12a893;
+  --color-brand-100: #d6f2ec;
+  --color-brand-50: #eaf8f5;
+  --color-good-600: #16a34a;
+  --color-good-50: #e9f8ee;
+  --color-warn-600: #b7791f;
+  --color-warn-50: #fdf5e4;
 }
 
 html,
