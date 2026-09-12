@@ -659,6 +659,237 @@
           "expectExactly": [{ "c": "err", "code": "unknown_input", "msg": "switch.zzz" }]
         }
       ]
+    },
+
+    {
+      "name": "20 batch：一帧多能力与原子性",
+      "setup": { "dev": "ARGX-0001" },
+      "steps": [
+        { "connect": true, "expect": [{ "c": "ready" }] },
+        {
+          "note": "一帧同时动三路，只回一个 ack，带逐条结果",
+          "send": {
+            "v": 1, "c": "batch", "seq": 500,
+            "p": { "cues": [
+              { "id": "light.main", "p": { "i": 1, "dur": 5000 } },
+              { "id": "sound.beeper", "p": { "i": 1, "dur": 5000 } },
+              { "id": "env.relay", "p": { "i": 1, "dur": 5000 } }
+            ] }
+          },
+          "expectExactly": [
+            {
+              "c": "ack", "seq": 500, "r": "applied",
+              "res": { "light.main": "applied", "sound.beeper": "applied", "env.relay": "applied" }
+            }
+          ],
+          "expectLevel": { "light.main": 1, "sound.beeper": 1, "env.relay": 1 }
+        },
+        {
+          "note": "两条带渐变的 cue 放进同一帧（灯从 1 降到 0.2，马达从 0 升到 1）",
+          "send": {
+            "v": 1, "c": "batch", "seq": 501,
+            "p": { "cues": [
+              { "id": "light.main", "p": { "i": 0.2, "ramp": 1000 } },
+              { "id": "motion.vibrate", "p": { "i": 1, "ramp": 1000 } }
+            ] }
+          },
+          "expectExactly": [
+            { "c": "ack", "seq": 501, "r": "partial",
+              "res": { "light.main": "preempted", "motion.vibrate": "applied" } }
+          ]
+        },
+        {
+          "note": "500ms 后两条各自正好走到自己行程的一半——只有共用同一个时间戳才可能这样。分开两帧发做不到",
+          "advance": 500,
+          "expectLevel": { "light.main": 0.6, "motion.vibrate": 0.5 }
+        },
+        {
+          "note": "批里混进一个没注册的 id → 整批拒绝，另一条也不许生效（原子性最关键的一条）",
+          "send": {
+            "v": 1, "c": "batch", "seq": 502,
+            "p": { "cues": [
+              { "id": "light.main", "p": { "i": 0 } },
+              { "id": "light.nope", "p": { "i": 1 } }
+            ] }
+          },
+          "expectExactly": [{ "c": "err", "code": "unknown_id", "msg": "light.nope", "seq": 502 }],
+          "expectLevel": { "light.main": 0.6, "motion.vibrate": 0.5 }
+        },
+        {
+          "note": "空批 → bad_frame，无副作用",
+          "send": { "v": 1, "c": "batch", "seq": 503, "p": { "cues": [] } },
+          "expectExactly": [{ "c": "err", "code": "bad_frame", "msg": "batch is empty", "seq": 503 }]
+        },
+        {
+          "note": "超过 8 条上限 → 整批拒绝，无副作用",
+          "send": {
+            "v": 1, "c": "batch", "seq": 504,
+            "p": { "cues": [
+              { "id": "light.main", "p": { "i": 0.1 } }, { "id": "light.main", "p": { "i": 0.1 } },
+              { "id": "light.main", "p": { "i": 0.1 } }, { "id": "light.main", "p": { "i": 0.1 } },
+              { "id": "light.main", "p": { "i": 0.1 } }, { "id": "light.main", "p": { "i": 0.1 } },
+              { "id": "light.main", "p": { "i": 0.1 } }, { "id": "light.main", "p": { "i": 0.1 } },
+              { "id": "light.main", "p": { "i": 0.1 } }
+            ] }
+          },
+          "expectExactly": [{ "c": "err", "code": "bad_frame", "msg": "batch too large", "seq": 504 }],
+          "expectLevel": { "light.main": 0.6 }
+        },
+        {
+          "note": "批内各自仲裁：灯的优先级不够被丢弃，蜂鸣器优先级更高照常执行 → 聚合为 partial",
+          "send": {
+            "v": 1, "c": "batch", "seq": 505,
+            "p": { "cues": [
+              { "id": "light.main", "p": { "i": 0.1, "pri": 3 } },
+              { "id": "sound.beeper", "p": { "i": 1, "dur": 1000, "pri": 1 } }
+            ] }
+          },
+          "expectExactly": [
+            { "c": "ack", "seq": 505, "r": "partial",
+              "res": { "light.main": "dropped", "sound.beeper": "preempted" } }
+          ]
+        },
+        {
+          "note": "一批两条都抢占原有效果",
+          "send": {
+            "v": 1, "c": "batch", "seq": 506,
+            "p": { "cues": [
+              { "id": "light.main", "p": { "i": 0.9, "dur": 8000, "pri": 1 } },
+              { "id": "motion.vibrate", "p": { "i": 0.4, "dur": 8000, "pri": 1 } }
+            ] }
+          },
+          "expectExactly": [
+            { "c": "ack", "seq": 506, "r": "preempted",
+              "res": { "light.main": "preempted", "motion.vibrate": "preempted" } }
+          ]
+        },
+        {
+          "note": "整批重发（同 seq）→ 逐条幂等",
+          "send": {
+            "v": 1, "c": "batch", "seq": 506,
+            "p": { "cues": [
+              { "id": "light.main", "p": { "i": 0.9, "dur": 8000, "pri": 1 } },
+              { "id": "motion.vibrate", "p": { "i": 0.4, "dur": 8000, "pri": 1 } }
+            ] }
+          },
+          "expectExactly": [
+            { "c": "ack", "seq": 506, "r": "dup",
+              "res": { "light.main": "dup", "motion.vibrate": "dup" } }
+          ]
+        }
+      ]
+    },
+
+    {
+      "name": "21 hold：常驻效果",
+      "setup": { "dev": "ARGX-0001" },
+      "steps": [
+        { "connect": true, "expect": [{ "c": "ready" }] },
+        {
+          "note": "常驻：ttl 报 -1（正常效果的 ttl 恒 ≥ 0，所以没有歧义）",
+          "send": { "v": 1, "c": "cue", "id": "light.main", "p": { "i": 1, "hold": true }, "seq": 600 },
+          "expectExactly": [{ "c": "ack", "seq": 600, "r": "applied" }],
+          "expectLevel": { "light.main": 1 },
+          "expectTtl": { "light.main": [-1, -1] }
+        },
+        {
+          "note": "9 秒一次心跳维持会话（看门狗线是 15 秒）",
+          "advance": 9000,
+          "send": { "v": 1, "c": "ping", "seq": 601 },
+          "expectExactly": [{ "c": "pong", "seq": 601 }]
+        },
+        { "advance": 9000, "send": { "v": 1, "c": "ping", "seq": 602 }, "expectExactly": [{ "c": "pong", "seq": 602 }] },
+        { "advance": 9000, "send": { "v": 1, "c": "ping", "seq": 603 }, "expectExactly": [{ "c": "pong", "seq": 603 }] },
+        { "advance": 9000, "send": { "v": 1, "c": "ping", "seq": 604 }, "expectExactly": [{ "c": "pong", "seq": 604 }] },
+        {
+          "note": "36 秒过去（远超 30 秒 TTL），灯还亮着、ttl 仍是 -1——hold 确实绕过了 TTL",
+          "expectLevel": { "light.main": 1 },
+          "expectTtl": { "light.main": [-1, -1] }
+        },
+        {
+          "note": "但 hold 不是无敌：更高优先级照样抢占",
+          "send": { "v": 1, "c": "cue", "id": "light.main", "p": { "i": 0.3, "dur": 5000, "pri": 1 }, "seq": 605 },
+          "expectExactly": [{ "c": "ack", "seq": 605, "r": "preempted" }],
+          "expectLevel": { "light.main": 0.3 },
+          "expectTtl": { "light.main": [4990, 5000] }
+        },
+        {
+          "note": "先起一个常驻效果（pri 给 1，否则抢不过上一条 high），下一步用 reset 清它",
+          "send": { "v": 1, "c": "cue", "id": "light.main", "p": { "i": 1, "hold": true, "pri": 1 }, "seq": 606 },
+          "expect": [{ "c": "ack", "seq": 606 }],
+          "expectLevel": { "light.main": 1 }
+        },
+        {
+          "send": { "v": 1, "c": "reset", "seq": 607 },
+          "expectExactly": [{ "c": "ack", "seq": 607, "r": "applied" }],
+          "expectLevel": { "light.main": 0 }
+        },
+        {
+          "note": "看门狗是 hold 的硬边界：15 秒无有效帧一律归零，常驻也不例外",
+          "send": { "v": 1, "c": "cue", "id": "light.main", "p": { "i": 1, "hold": true }, "seq": 608 },
+          "expect": [{ "c": "ack", "seq": 608, "r": "applied" }],
+          "expectLevel": { "light.main": 1 }
+        },
+        {
+          "advance": 15001,
+          "expectLevel": { "light.main": 0 },
+          "expectState": "idle"
+        },
+        {
+          "note": "看门狗之后会话仍可用",
+          "send": { "v": 1, "c": "cue", "id": "light.main", "p": { "i": 1, "hold": true }, "seq": 609 },
+          "expectExactly": [{ "c": "ack", "seq": 609, "r": "applied" }],
+          "expectLevel": { "light.main": 1 },
+          "expectState": "active"
+        },
+        {
+          "note": "断连必须清掉常驻效果——物理上拔了线，灯不能还亮着",
+          "close": true,
+          "expectLevel": { "light.main": 0 },
+          "expectState": "disconnected"
+        },
+        {
+          "note": "重连后 hold 照常可用",
+          "connect": true,
+          "expectExactly": [{ "c": "ready" }]
+        },
+        {
+          "send": { "v": 1, "c": "cue", "id": "light.main", "p": { "i": 1, "hold": true }, "seq": 610 },
+          "expectExactly": [{ "c": "ack", "seq": 610, "r": "applied" }],
+          "expectLevel": { "light.main": 1 }
+        }
+      ]
+    },
+
+    {
+      "name": "22 hold 与 ramp 共存",
+      "setup": { "dev": "ARGX-0001" },
+      "steps": [
+        { "connect": true, "expect": [{ "c": "ready" }] },
+        {
+          "note": "常驻 + 渐变：hold 把 dur 归零，但不该把 ramp 一起抹掉",
+          "send": { "v": 1, "c": "cue", "id": "light.main", "p": { "i": 1, "ramp": 1000, "hold": true }, "seq": 700 },
+          "expectExactly": [{ "c": "ack", "seq": 700, "r": "applied" }],
+          "expectLevel": { "light.main": 0 },
+          "expectTtl": { "light.main": [-1, -1] }
+        },
+        { "advance": 500, "expectLevel": { "light.main": 0.5 } },
+        { "note": "渐变走完，停在目标值并转入常驻", "advance": 500, "expectLevel": { "light.main": 1 } },
+        { "advance": 9000, "send": { "v": 1, "c": "ping", "seq": 701 }, "expect": [{ "c": "pong", "seq": 701 }] },
+        { "advance": 9000, "send": { "v": 1, "c": "ping", "seq": 702 }, "expect": [{ "c": "pong", "seq": 702 }] },
+        { "advance": 9000, "send": { "v": 1, "c": "ping", "seq": 703 }, "expect": [{ "c": "pong", "seq": 703 }] },
+        { "advance": 9000, "send": { "v": 1, "c": "ping", "seq": 704 }, "expect": [{ "c": "pong", "seq": 704 }] },
+        {
+          "note": "36 秒后仍然亮着且仍是常驻",
+          "expectLevel": { "light.main": 1 },
+          "expectTtl": { "light.main": [-1, -1] }
+        },
+        {
+          "note": "常驻效果同样参与连点去重（新 seq、同参数、仍生效 → dup）",
+          "send": { "v": 1, "c": "cue", "id": "light.main", "p": { "i": 1, "ramp": 1000, "hold": true }, "seq": 705 },
+          "expectExactly": [{ "c": "ack", "seq": 705, "r": "dup" }]
+        }
+      ]
     }
   ]
 }
