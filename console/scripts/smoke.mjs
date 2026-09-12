@@ -249,18 +249,36 @@ async function main() {
       check(false, '找到强度滑杆', rampOk);
     }
 
-    // 5. 故障注入面板能开，界面不崩
-    const faultOk = await cdp.eval(`
-      (() => {
-        const boxes = [...document.querySelectorAll('input[type=checkbox]')];
-        const target = boxes.find(b => b.closest('label')?.innerText.includes('垃圾 JSON'));
-        if (!target) return 'not-found';
-        target.click();
-        return 'ok';
-      })()`);
-    check(faultOk === 'ok', '故障注入面板能切换开关');
-    await sleep(400);
-    check(await cdp.eval(hasText('虚拟装置')), '开完故障界面没崩');
+    // 5. 故障注入面板：每一项都要能切，开着的时候界面不能崩
+    const FAULTS = [
+      '不发 ready',
+      '延迟 3 秒应答',
+      '随机丢包 50%',
+      '发送垃圾 JSON',
+      '1 秒后中途断连',
+      '复位窗口拉长到 2 秒'
+    ];
+    for (const name of FAULTS) {
+      const r = await cdp.eval(`
+        (() => {
+          const boxes = [...document.querySelectorAll('input[type=checkbox]')];
+          const target = boxes.find(b => b.closest('label')?.innerText.includes(${JSON.stringify(name)}));
+          if (!target) return 'not-found';
+          target.click();
+          return 'ok';
+        })()`);
+      if (r !== 'ok') {
+        check(false, `故障开关「${name}」`, `找不到：${r}`);
+        continue;
+      }
+      await sleep(300);
+      const alive = await cdp.eval(hasText('虚拟装置'));
+      check(alive, `故障「${name}」打开后界面正常`);
+    }
+    // 全关掉再继续：延迟应答开着的话后面等回执会超时
+    await cdp.eval(clickByText('全部关闭'));
+    await sleep(500);
+    check(await cdp.eval(hasText('虚拟装置')), '「全部关闭」之后界面正常');
 
     // 6. 时间线里能看到真的收发过
     await cdp.eval(`window.location.hash = 'timeline'`);

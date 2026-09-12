@@ -66,7 +66,7 @@ dist/
 
 ```bash
 npm run dev                     # 先起服务（另一个终端）
-node scripts/smoke.mjs          # 用无头浏览器真的点一遍，21 项检查
+node scripts/smoke.mjs          # 用无头浏览器真的点一遍，26 项检查
 ```
 
 它会自己找一个本机的 Chrome/Edge 跑无头模式，验证「点预设按钮 → 协议 → 虚拟装置 → 视觉反馈」
