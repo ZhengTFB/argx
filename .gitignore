@@ -1,0 +1,9 @@
+# 依赖与构建产物：都不进仓库
+node_modules/
+console/dist/
+.vite/
+
+# 编辑器与系统
+.DS_Store
+Thumbs.db
+*.log
