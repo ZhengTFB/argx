@@ -25,6 +25,7 @@
 #define ARGX_MAX_EFFECT_MS 30000 // 单效果 TTL 上限
 #define ARGX_MAX_LINE 512        // 单行上限，超限丢弃
 #define ARGX_MAX_CAPS 12         // 注册表容量（定长，不用动态内存）
+#define ARGX_MAX_BATCH 8         // batch 单帧最多几条（PROTOCOL §4.3）
 #define ARGX_MAX_FRAME 512       // 发帧缓冲
 
 // 效果优先级（PROTOCOL §10）。数值越小越强势。
@@ -59,6 +60,7 @@ struct ArgxParams {
   uint32_t dur;     // 已钳制的持续毫秒
   uint32_t ramp;    // 已钳制的渐变毫秒
   uint8_t pri;      // 优先级
+  bool hold;        // true = 常驻（无 TTL），见 PROTOCOL §7.1
   long seq;         // 源帧序号，-1 表示非 cue 触发
   bool start;       // true = 本次效果的首帧
   bool release;     // true = 释放（TTL 到期 / reset / 看门狗）
@@ -103,6 +105,7 @@ private:
     ArgxInputHandler inFn;
     // 仲裁状态
     bool active;        // 当前有生效中的效果
+    bool hold;          // 当前效果是否常驻（无 TTL）
     uint8_t pri;
     float level;        // 当前瞬时强度
     float target;       // 目标强度
@@ -122,8 +125,20 @@ private:
   void processLine(char *line);
   void handleFrame(const char *json, const char *cmd, long seq);
 
+  // 一条 cue 的解析结果。独立 cue 与 batch 里的每一条共用这个结构，
+  // 所以两者的字段语义不可能漂移。
+  struct ArgxCueSpec {
+    char id[32];
+    float level;
+    uint32_t dur;
+    uint32_t ramp;
+    uint8_t pri;
+    bool hold;
+  };
+
   // --- 命令处理（PROTOCOL §4.1）---
   void cmdCue(const char *json, long seq);
+  void cmdBatch(const char *json, long seq);
   void cmdHello();
   void cmdQuery();
   void cmdCfg(const char *json);
@@ -132,7 +147,9 @@ private:
 
   // --- 仲裁（PROTOCOL §10）---
   Cap *findCap(const char *id, ArgxKind kind);
-  static bool sameEffect(const Cap &c, float i, uint32_t dur, uint32_t ramp);
+  bool parseCueSpec(const char *begin, const char *end, ArgxCueSpec &spec);
+  static bool sameEffect(const Cap &c, const ArgxCueSpec &s);
+  const char *applyCue(const ArgxCueSpec &s, uint32_t now, long seq);
   void applyCap(Cap &c, float level, bool start, bool release, long seq);
   void releaseCap(Cap &c, bool notify);
   void forceIdle(); // 看门狗/reset 的复位路径
@@ -140,6 +157,8 @@ private:
   // --- 发帧 ---
   void sendReady();
   void sendAck(long seq, const char *result);
+  void sendBatchAck(long seq, const char *agg, const ArgxCueSpec *specs,
+                    const char *const *results, uint8_t n);
   void sendPong(long seq);
   void sendState();
   void sendErr(const char *code, const char *msg, long seq);

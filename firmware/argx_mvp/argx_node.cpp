@@ -92,6 +92,29 @@ bool readNumber(const char *v, const char *end, double *out) {
   return true;
 }
 
+bool readBool(const char *v, const char *end, bool *out) {
+  if (!v || v >= end)
+    return false;
+  if (strncmp(v, "true", 4) == 0) {
+    *out = true;
+    return true;
+  }
+  if (strncmp(v, "false", 5) == 0) {
+    *out = false;
+    return true;
+  }
+  double d = 0;
+  if (readNumber(v, end, &d)) { // 容忍把 1 / 0 写成数字
+    *out = (d != 0);
+    return true;
+  }
+  return false;
+}
+
+double clampd(double v, double lo, double hi) {
+  return v < lo ? lo : (v > hi ? hi : v);
+}
+
 // 取一个 JSON 对象的跨度（含花括号），用于把 p 的内容圈出来单独找键
 bool readObjectSpan(const char *v, const char *end, const char **begin,
                     const char **stop) {
@@ -316,7 +339,8 @@ void ArgxNode::tick() {
     Cap &c = _caps[i];
     if (c.kind != ARGX_KIND_OUT || !c.active)
       continue;
-    if ((int32_t)(now - c.expiresAt) >= 0) {
+    // hold 的效果没有 TTL，只能被抢占/reset/看门狗/断连结束（PROTOCOL §7.1）
+    if (!c.hold && (int32_t)(now - c.expiresAt) >= 0) {
       releaseCap(c, true); // TTL 到点自动释放，不需要任何人再发帧
       continue;
     }
@@ -410,6 +434,8 @@ void ArgxNode::handleFrame(const char *json, const char *cmd, long seq) {
     cmdHello();
   } else if (strcmp(cmd, "cue") == 0) {
     cmdCue(json, seq);
+  } else if (strcmp(cmd, "batch") == 0) {
+    cmdBatch(json, seq);
   } else if (strcmp(cmd, "query") == 0) {
     cmdQuery();
   } else if (strcmp(cmd, "cfg") == 0) {
@@ -452,85 +478,170 @@ void ArgxNode::cmdReset() {
   forceIdle();
 }
 
+// 解析一条 cue。独立 cue 的帧本身就是这个形状（顶层 id + p 对象），
+// batch 里的每个元素也是这个形状，所以两者共用这一个函数——
+// 字段语义不可能漂移。
+bool ArgxNode::parseCueSpec(const char *b, const char *e, ArgxCueSpec &s) {
+  memset(&s, 0, sizeof(s));
+  const char *pid = findKey(b, e, "id");
+  if (!pid || !readString(pid, e, s.id, sizeof(s.id)))
+    return false;
+
+  // 缺省值。越界只钳制不报错（降级优于报错）。
+  s.level = 1.0f;
+  s.dur = ARGX_MAX_EFFECT_MS;
+  s.ramp = 0;
+  s.pri = ARGX_PRI_NORMAL;
+  s.hold = false;
+
+  const char *pp = findKey(b, e, "p");
+  const char *pb = nullptr, *pe = nullptr;
+  if (pp && readObjectSpan(pp, e, &pb, &pe)) {
+    double d = 0;
+    const char *k;
+    if ((k = findKey(pb, pe, "i")) && readNumber(k, pe, &d))
+      s.level = (float)clampd(d, 0.0, 1.0);
+    if ((k = findKey(pb, pe, "dur")) && readNumber(k, pe, &d) && d >= 0)
+      s.dur = (uint32_t)clampd(d, 0.0, (double)ARGX_MAX_EFFECT_MS);
+    if ((k = findKey(pb, pe, "ramp")) && readNumber(k, pe, &d) && d >= 0)
+      s.ramp = (uint32_t)clampd(d, 0.0, (double)ARGX_MAX_EFFECT_MS);
+    if ((k = findKey(pb, pe, "pri")) && readNumber(k, pe, &d))
+      s.pri = (uint8_t)clampd(d, 0.0, (double)ARGX_PRI_AMBIENT);
+    k = findKey(pb, pe, "hold");
+    if (k)
+      readBool(k, pe, &s.hold);
+  }
+  // ramp 先按 dur 钳；常驻时 dur 仍是缺省的 30000，所以渐变的头上限也就有了
+  if (s.ramp > s.dur)
+    s.ramp = s.dur;
+  if (s.hold)
+    s.dur = 0; // 常驻：dur 不再有任何意义（PROTOCOL §7.1）
+  return true;
+}
+
 void ArgxNode::cmdCue(const char *json, long seq) {
   const char *end = json + strlen(json);
-
-  char id[32];
-  const char *pid = findKey(json, end, "id");
-  if (!pid || !readString(pid, end, id, sizeof(id))) {
+  ArgxCueSpec s;
+  if (!parseCueSpec(json, end, s)) {
     sendErr("bad_frame", "cue without id", seq);
     return;
   }
+  if (!findCap(s.id, ARGX_KIND_OUT)) {
+    sendErr("unknown_id", s.id, seq);
+    return;
+  }
+  sendAck(seq, applyCue(s, millis(), seq));
+}
 
-  // 参数一律先给缺省值，越界只钳制不报错（降级优于报错）
-  ArgxParams p;
-  memset(&p, 0, sizeof(p));
-  p.id = id;
-  p.level = 1.0f;
-  p.levelTarget = 1.0f;
-  p.dur = ARGX_MAX_EFFECT_MS;
-  p.ramp = 0;
-  p.pri = ARGX_PRI_NORMAL;
-  p.seq = seq;
-
+// batch：一帧触发多个效果。校验是原子的（任一不合法整批不执行），
+// 执行阶段各自走正常仲裁，所有条目共用同一个 now（PROTOCOL §4.3）。
+void ArgxNode::cmdBatch(const char *json, long seq) {
+  const char *end = json + strlen(json);
   const char *pp = findKey(json, end, "p");
   const char *pb = nullptr, *pe = nullptr;
-  if (pp && readObjectSpan(pp, end, &pb, &pe)) {
-    double d = 0;
-    const char *k;
-    if ((k = findKey(pb, pe, "i")) && readNumber(k, pe, &d)) {
-      if (d < 0)
-        d = 0;
-      if (d > 1)
-        d = 1;
-      p.levelTarget = (float)d;
-    }
-    if ((k = findKey(pb, pe, "dur")) && readNumber(k, pe, &d) && d >= 0) {
-      if (d > ARGX_MAX_EFFECT_MS)
-        d = ARGX_MAX_EFFECT_MS;
-      p.dur = (uint32_t)d;
-    }
-    if ((k = findKey(pb, pe, "ramp")) && readNumber(k, pe, &d) && d >= 0) {
-      if (d > ARGX_MAX_EFFECT_MS)
-        d = ARGX_MAX_EFFECT_MS;
-      p.ramp = (uint32_t)d;
-    }
-    if ((k = findKey(pb, pe, "pri")) && readNumber(k, pe, &d)) {
-      if (d < ARGX_PRI_CRITICAL)
-        d = ARGX_PRI_CRITICAL;
-      if (d > ARGX_PRI_AMBIENT)
-        d = ARGX_PRI_AMBIENT;
-      p.pri = (uint8_t)d;
-    }
-  }
-  if (p.ramp > p.dur)
-    p.ramp = p.dur;
-
-  Cap *c = findCap(id, ARGX_KIND_OUT);
-  if (!c) {
-    sendErr("unknown_id", id, p.seq);
+  if (!pp || !readObjectSpan(pp, end, &pb, &pe)) {
+    sendErr("bad_frame", "batch without p", seq);
     return;
   }
+  const char *pa = findKey(pb, pe, "cues");
+  if (!pa || pa >= pe || *pa != '[') {
+    sendErr("bad_frame", "batch without p.cues", seq);
+    return;
+  }
+
+  ArgxCueSpec specs[ARGX_MAX_BATCH];
+  uint8_t n = 0;
+  const char *p = pa + 1;
+  while (p < pe) {
+    p = skipWs(p, pe);
+    if (p >= pe || *p == ']')
+      break;
+    if (*p == ',') {
+      p++;
+      continue;
+    }
+    if (*p != '{') {
+      sendErr("bad_frame", "batch item is not an object", seq);
+      return;
+    }
+    const char *eo = nullptr, *ec = nullptr;
+    if (!readObjectSpan(p, pe, &eo, &ec)) {
+      sendErr("bad_frame", "batch item not closed", seq);
+      return;
+    }
+    if (n >= ARGX_MAX_BATCH) {
+      sendErr("bad_frame", "batch too large", seq);
+      return;
+    }
+    if (!parseCueSpec(eo, ec, specs[n])) {
+      sendErr("bad_frame", "batch item without id", seq);
+      return;
+    }
+    if (!findCap(specs[n].id, ARGX_KIND_OUT)) {
+      sendErr("unknown_id", specs[n].id, seq); // 整批拒绝，一条都不执行
+      return;
+    }
+    n++;
+    p = ec + 1;
+  }
+  if (n == 0) {
+    sendErr("bad_frame", "batch is empty", seq);
+    return;
+  }
+
+  const uint32_t now = millis(); // 同一帧共用一个时间戳
+  const char *results[ARGX_MAX_BATCH];
+  bool anyApplied = false, anyPreempted = false, anyDropped = false, anyDup = false;
+  for (uint8_t i = 0; i < n; i++) {
+    results[i] = applyCue(specs[i], now, seq);
+    if (strcmp(results[i], "applied") == 0)
+      anyApplied = true;
+    else if (strcmp(results[i], "preempted") == 0)
+      anyPreempted = true;
+    else if (strcmp(results[i], "dropped") == 0)
+      anyDropped = true;
+    else if (strcmp(results[i], "dup") == 0)
+      anyDup = true;
+  }
+  const int kinds = (anyApplied ? 1 : 0) + (anyPreempted ? 1 : 0) +
+                    (anyDropped ? 1 : 0) + (anyDup ? 1 : 0);
+  const char *agg;
+  if (kinds > 1)
+    agg = "partial";
+  else if (anyApplied)
+    agg = "applied";
+  else if (anyPreempted)
+    agg = "preempted";
+  else if (anyDropped)
+    agg = "dropped";
+  else
+    agg = "dup";
+  sendBatchAck(seq, agg, specs, results, n);
+}
+
+// ===========================================================================
+// 仲裁辅助
+// ===========================================================================
+
+// 执行一条已通过前置校验的 cue，返回结果字符串（与 ack 的 r 取值一致）
+const char *ArgxNode::applyCue(const ArgxCueSpec &s, uint32_t now, long seq) {
+  Cap *c = findCap(s.id, ARGX_KIND_OUT);
+  if (!c)
+    return "unknown_id";
 
   // --- 仲裁（PROTOCOL §10，顺序不可调换）---
-  if (_resetting) {
-    sendAck(p.seq, "dropped");
-    return;
-  }
-  if (c->hasLastSeq && c->lastSeq == p.seq) {
-    sendAck(p.seq, "dup"); // 幂等：同 id 同 seq 不重复执行
-    return;
-  }
-  if (c->active && c->pri == p.pri &&
-      sameEffect(*c, p.levelTarget, p.dur, p.ramp)) {
-    c->lastSeq = p.seq;
+  if (_resetting)
+    return "dropped";
+  if (c->hasLastSeq && c->lastSeq == seq)
+    return "dup"; // 幂等：同 id 同 seq 不重复执行
+  if (c->active && c->pri == s.pri && sameEffect(*c, s)) {
+    c->lastSeq = seq;
     c->hasLastSeq = true;
-    sendAck(p.seq, "dup"); // 连点：同 id 同优先级同参数，忽略
-    return;
+    return "dup"; // 连点：同 id 同优先级同参数，忽略
   }
 
   bool wasActive = c->active;
-  if (p.pri == ARGX_PRI_CRITICAL) {
+  if (s.pri == ARGX_PRI_CRITICAL) {
     // critical 执行前清空所有输出（含自己），保证「一定是当前唯一在演的东西」
     for (uint8_t i = 0; i < _capCount; i++) {
       if (_caps[i].kind == ARGX_KIND_OUT && _caps[i].active) {
@@ -538,41 +649,34 @@ void ArgxNode::cmdCue(const char *json, long seq) {
         wasActive = true;
       }
     }
-  } else if (c->active && p.pri > c->pri) {
-    sendAck(p.seq, "dropped"); // 低优先级不许打断高优先级
-    return;
+  } else if (c->active && s.pri > c->pri) {
+    return "dropped"; // 低优先级不许打断高优先级
   }
 
-  const uint32_t now = millis();
   c->rampStart = c->level; // 从当前亮度开始渐变，不跳变
-  c->pri = p.pri;
-  c->target = p.levelTarget;
-  c->dur = p.dur;
-  c->ramp = p.ramp;
+  c->pri = s.pri;
+  c->target = s.level;
+  c->dur = s.dur;
+  c->ramp = s.ramp;
+  c->hold = s.hold;
   c->active = true;
   c->startedAt = now;
-  c->expiresAt = now + p.dur;
-  c->seq = p.seq;
-  c->lastSeq = p.seq;
+  c->expiresAt = now + s.dur; // hold 时不检查这个字段，见 tick()
+  c->seq = seq;
+  c->lastSeq = seq;
   c->hasLastSeq = true;
 
-  const float startLevel = (p.ramp > 0) ? c->rampStart : p.levelTarget;
-  applyCap(*c, startLevel, true, false, p.seq);
-
-  log("cue %s i=%.2f dur=%lu ramp=%lu pri=%s -> %s", id, (double)c->target,
-      (unsigned long)c->dur, (unsigned long)c->ramp, priName(p.pri),
-      wasActive ? "preempted" : "applied");
-  sendAck(p.seq, wasActive ? "preempted" : "applied");
+  applyCap(*c, s.ramp > 0 ? c->rampStart : c->target, true, false, seq);
+  log("cue %s i=%.2f dur=%lu ramp=%lu pri=%s%s -> %s", s.id, (double)c->target,
+      (unsigned long)c->dur, (unsigned long)c->ramp, priName(s.pri),
+      s.hold ? " hold" : "", wasActive ? "preempted" : "applied");
+  return wasActive ? "preempted" : "applied";
 }
 
-// ===========================================================================
-// 仲裁辅助
-// ===========================================================================
-
-bool ArgxNode::sameEffect(const Cap &c, float i, uint32_t dur, uint32_t ramp) {
-  if (c.ramp != ramp || c.dur != dur)
+bool ArgxNode::sameEffect(const Cap &c, const ArgxCueSpec &s) {
+  if (c.ramp != s.ramp || c.dur != s.dur || c.hold != s.hold)
     return false;
-  const float diff = c.target - i;
+  const float diff = c.target - s.level;
   return diff < 0.0001f && diff > -0.0001f;
 }
 
@@ -588,6 +692,7 @@ void ArgxNode::applyCap(Cap &c, float level, bool start, bool release, long seq)
   p.dur = c.dur;
   p.ramp = c.ramp;
   p.pri = c.pri;
+  p.hold = c.hold;
   p.seq = seq;
   p.start = start;
   p.release = release;
@@ -598,6 +703,7 @@ void ArgxNode::releaseCap(Cap &c, bool notify) {
   if (notify)
     applyCap(c, 0.0f, false, true, c.seq);
   c.active = false;
+  c.hold = false;
   c.level = 0.0f;
   c.target = 0.0f;
   c.rampStart = 0.0f;
@@ -662,6 +768,20 @@ void ArgxNode::sendAck(long seq, const char *result) {
   sendRaw(buf);
 }
 
+void ArgxNode::sendBatchAck(long seq, const char *agg, const ArgxCueSpec *specs,
+                            const char *const *results, uint8_t n) {
+  char buf[ARGX_MAX_FRAME];
+  int len = appendf(buf, sizeof(buf), 0,
+                    "{\"v\":%d,\"c\":\"ack\",\"seq\":%ld,\"r\":\"%s\",\"res\":{",
+                    ARGX_PROTO_VERSION, seq, agg);
+  for (uint8_t i = 0; i < n; i++) {
+    len = appendf(buf, sizeof(buf), len, "%s\"%s\":\"%s\"", i ? "," : "",
+                  specs[i].id, results[i]);
+  }
+  appendf(buf, sizeof(buf), len, "}}");
+  sendRaw(buf);
+}
+
 void ArgxNode::sendPong(long seq) {
   char buf[80];
   snprintf(buf, sizeof(buf), "{\"v\":%d,\"c\":\"pong\",\"seq\":%ld}",
@@ -681,10 +801,11 @@ void ArgxNode::sendState() {
     Cap &c = _caps[i];
     if (c.kind != ARGX_KIND_OUT)
       continue;
-    const unsigned long ttl =
-        c.active ? (unsigned long)(c.expiresAt - now) : 0UL;
+    // ttl = -1 表示常驻（正常效果的 TTL 恒 >= 0，所以没有歧义）
+    const long ttl =
+        c.hold ? -1L : (c.active ? (long)(c.expiresAt - now) : 0L);
     n = appendf(buf, sizeof(buf), n,
-                "%s\"%s\":{\"i\":%.2f,\"pri\":%u,\"ttl\":%lu}", first ? "" : ",",
+                "%s\"%s\":{\"i\":%.2f,\"pri\":%u,\"ttl\":%ld}", first ? "" : ",",
                 c.id, (double)c.level, (unsigned)c.pri, ttl);
     first = false;
   }
