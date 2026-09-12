@@ -16,10 +16,20 @@ export interface Work {
   summary: string;
   /** 需要哪些能力 id，空数组表示纯网页作品 */
   needs: string[];
+  /**
+   * 有了更好、没有也能玩的能力。
+   *
+   * 为什么需要这一栏：SDK 会按装置的能力声明**自动跳过**它没有的那几路
+   *（见 sdk/AGENTS.md），所以"缺一件就不能玩"和"缺一件就少一个效果"
+   * 是两回事，混在一起会让玩家以为不买齐四样就玩不了。
+   * 专业控制台的列表只看 needs（那里是"硬件是把关项"的口径），
+   * 小白控制台两栏都会说清楚。
+   */
+  optional?: string[];
   /** 大概多久能玩完 */
   duration: string;
   status: '可用' | '内测' | '规划中';
-  /** 作品入口，阶段三之前留空 */
+  /** 作品入口。指向控制台的 #play:<id>，作品在控制台里直接跑起来 */
   link?: string;
 }
 
@@ -30,10 +40,12 @@ export const WORKS: Work[] = [
     author: 'ARGX 示例',
     summary:
       '你在自习室捡到一本不属于任何人的笔记。翻到第三页时，桌上的灯会自己暗下去。',
-    needs: ['light.main'],
-    duration: '约 15 分钟',
+    needs: ['light.main', 'sound.beeper'],
+    optional: ['motion.vibrate', 'env.relay'],
+    duration: '约 5 分钟',
     status: '可用',
-    link: '#'
+    // 这是阶段三的 Demo 本身（demo/ 目录），点开就能在控制台里玩一遍
+    link: '#play:work-study'
   },
   {
     id: 'work-beacon',
