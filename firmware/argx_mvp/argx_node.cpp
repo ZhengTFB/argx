@@ -394,11 +394,12 @@ void ArgxNode::processLine(char *line) {
     return;
   }
 
-  // 到这里才算有效帧
+  // 到这里才算有效帧。有效帧恢复会话（idle 只是看门狗刚触发时的标记，不是
+  // 「设备死了」）；但复位窗口还没走完时不算数——那时候会话仍是 idle。
   const uint32_t now = millis();
   _lastFrameAt = now;
   _lastPingAt = now; // 任何有效帧都算「对端还活着」，不只看 ping
-  if (_state != ARGX_ST_IDLE)
+  if (!_resetting)
     _state = ARGX_ST_ACTIVE;
 
   handleFrame(line, cmd, seq);
