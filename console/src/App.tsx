@@ -1,118 +1,49 @@
 import { useEffect, useState } from 'react';
-import { store, useStore } from './core/store';
-import { ConnectControls } from './ui/ConnectControls';
-import Overview from './panels/Overview';
-import Devices from './panels/Devices';
-import WorksPanel from './panels/WorksPanel';
-import SimulatorPanel from './panels/SimulatorPanel';
-import TimelinePanel from './panels/TimelinePanel';
-import DocsPanel from './panels/DocsPanel';
-import CreatorPanel from './panels/CreatorPanel';
-import { SECTIONS, type SectionId } from './sections';
+import ProApp from './views/pro/ProApp';
+import BasicApp from './views/basic/BasicApp';
+import { SECTIONS } from './sections';
+import { BASIC_SECTIONS, type BasicSection } from './views/basic/routes';
 
-function sectionFromHash(): SectionId {
+/*
+ * 顶层：两套界面二选一。
+ *
+ *   小白控制台（默认）—— 给不懂硬件的人。选装置、看状态、点开一个剧本就能玩
+ *   专业控制台        —— 阶段二那套，调试协议用。一个字节都没改，只是搬了个家
+ *
+ * 选哪套由地址栏的 hash 决定，两套各有自己的 hash 空间，互不重叠：
+ *   #home / #device / #library / #help / #play:<id>  → 小白版
+ *   #overview / #devices / #works / #simulator / …   → 专业版
+ * 所以老链接（#simulator 之类）照旧能用，直接发给别人也不用改。
+ *
+ * 空 hash 和老链接之外的都进小白版——"打开就是小白控制台"是这一阶段的要求。
+ */
+
+type Route = { view: 'pro' } | { view: 'basic'; section: BasicSection; play?: string };
+
+const PLAY_PREFIX = 'play:';
+
+function routeFromHash(): Route {
   const h = window.location.hash.replace(/^#/, '');
-  return SECTIONS.some((s) => s.id === h) ? (h as SectionId) : 'overview';
+  if (SECTIONS.some((s) => s.id === h)) return { view: 'pro' };
+  // 播放页也属于小白版（section 只是给它一个"从哪来"的落点）
+  if (h.startsWith(PLAY_PREFIX)) {
+    return { view: 'basic', section: 'home', play: h.slice(PLAY_PREFIX.length) };
+  }
+  if (BASIC_SECTIONS.includes(h as BasicSection)) {
+    return { view: 'basic', section: h as BasicSection };
+  }
+  return { view: 'basic', section: 'home' };
 }
 
 export default function App() {
-  // 分区写进 hash：可以直接把 #simulator 发给别人，他打开就是模拟器。
-  // 想给别人看效果又不想让他装硬件时，这一条很省事。
-  const [section, setSection] = useState<SectionId>(sectionFromHash);
-  const conn = useStore((s) => s.conn);
-  const current = SECTIONS.find((s) => s.id === section)!;
+  const [route, setRoute] = useState<Route>(routeFromHash);
 
   useEffect(() => {
-    if (window.location.hash.replace(/^#/, '') !== section) window.location.hash = section;
-  }, [section]);
-
-  useEffect(() => {
-    const onHash = () => setSection(sectionFromHash());
+    const onHash = () => setRoute(routeFromHash());
     window.addEventListener('hashchange', onHash);
     return () => window.removeEventListener('hashchange', onHash);
   }, []);
 
-  return (
-    <div className="flex h-full min-h-0">
-      {/* 左侧导航 */}
-      <aside className="flex w-52 shrink-0 flex-col border-r border-ink-800 bg-ink-900">
-        <div className="border-b border-ink-800 px-4 py-3">
-          <div className="text-base font-semibold tracking-wide text-argx-400">ARGX 控制台</div>
-          <div className="mt-0.5 text-[11px] text-ink-600">让虚拟故事能操控现实物件</div>
-        </div>
-
-        <nav className="flex-1 overflow-y-auto p-2 thin-scroll">
-          {SECTIONS.map((s) => (
-            <button
-              key={s.id}
-              type="button"
-              onClick={() => setSection(s.id)}
-              className={`mb-0.5 block w-full rounded px-3 py-2 text-left text-sm transition-colors ${
-                section === s.id
-                  ? 'bg-ink-800 text-argx-400'
-                  : 'text-ink-400 hover:bg-ink-800 hover:text-ink-200'
-              }`}
-            >
-              {s.label}
-              {s.id === 'creator' && (
-                <span className="ml-1.5 text-[10px] text-ink-600">占位</span>
-              )}
-            </button>
-          ))}
-        </nav>
-
-        <div className="border-t border-ink-800 p-3">
-          <ConnectControls size="sm" />
-          <p className="mt-2 text-[11px] leading-relaxed text-ink-600">{conn.detail}</p>
-        </div>
-      </aside>
-
-      {/* 主区 */}
-      <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex items-center justify-between gap-4 border-b border-ink-800 px-4 py-3">
-          <div>
-            <h1 className="text-base font-semibold text-ink-200">{current.label}</h1>
-            <p className="text-[11px] text-ink-600">{current.hint}</p>
-          </div>
-          <div className="flex items-center gap-3 text-xs text-ink-400">
-            <span>
-              装置 <span className="text-ink-200">{conn.dev ?? '—'}</span>
-            </span>
-            <span>
-              传输 <span className="text-ink-200">{conn.label || '—'}</span>
-            </span>
-            <span>
-              心跳{' '}
-              <span className="text-ink-200">
-                {conn.latency === null ? '—' : `${conn.latency} ms`}
-              </span>
-            </span>
-          </div>
-        </header>
-
-        {conn.notice && (
-          <div className="flex items-start justify-between gap-4 border-b border-danger-400/40 bg-danger-400/10 px-4 py-2 text-xs text-danger-400">
-            <span>{conn.notice}</span>
-            <button
-              type="button"
-              className="shrink-0 underline"
-              onClick={() => store.patchConn({ notice: null })}
-            >
-              知道了
-            </button>
-          </div>
-        )}
-
-        <main className="min-h-0 flex-1 overflow-y-auto p-4 thin-scroll">
-          {section === 'overview' && <Overview onGo={setSection} />}
-          {section === 'devices' && <Devices />}
-          {section === 'works' && <WorksPanel />}
-          {section === 'simulator' && <SimulatorPanel />}
-          {section === 'timeline' && <TimelinePanel />}
-          {section === 'docs' && <DocsPanel />}
-          {section === 'creator' && <CreatorPanel />}
-        </main>
-      </div>
-    </div>
-  );
+  if (route.view === 'pro') return <ProApp />;
+  return <BasicApp section={route.section} play={route.play} />;
 }
