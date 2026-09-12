@@ -146,13 +146,58 @@ argx/
 ## 12. 工作笔记（你和我共同维护）
 
 ### 常用命令
-（开工第一步由你填写）
+
+```bash
+# 跑标准帧序列（唯一的一键验证，零依赖）
+node tests/run.js                 # 全部 19 个场景
+node tests/run.js -v              # 额外打印每步收到的帧
+node tests/run.js --scenario=11   # 只跑名字含 "11" 的场景
+
+# 编译固件（本机没有 g++/clang，C++ 只能靠这条）
+CLI=/c/Users/msa/.argx-tools/arduino-cli.exe
+$CLI compile -b esp32:esp32:esp32s3 firmware/argx_mvp    # 目标板 S3
+$CLI compile -b esp32:esp32:esp32   firmware/argx_mvp    # 老款 WROOM-32E
+```
+
+`arduino-cli.exe` 故意放在仓库外（`C:\Users\msa\.argx-tools\`），不要提交进仓库。
+esp32 core 3.3.11 已装好，不需要再 `core install`。
 
 ### 目录职责约定
-（开工第一步由你填写）
+
+| 目录 | 职责 | 谁依赖它 |
+|---|---|---|
+| `protocol/` | 协议规范，**唯一权威**。两端实现都从它派生 | 全部 |
+| `firmware/argx_mvp/` | Arduino 草稿目录。会话层 + 能力层 + 入口 | — |
+| `device/` | 虚拟设备，协议的第二实现，也是阶段二模拟器的底座 | 阶段二 |
+| `tests/` | 标准帧序列 + 跑它的命令行脚本 | 全部 |
+| `console/` `sdk/` `demo/` | 阶段二、三的产物，本阶段为空 | — |
+
+改协议的顺序永远是：先改 `protocol/`，再改 `firmware/` 与 `device/`，最后补 `tests/`。
 
 ### 已知坑
-（开工第一步由你填写）
+
+1. **Arduino 草稿目录名必须与 `.ino` 同名**，所以入口在 `firmware/argx_mvp/`，
+   不是任务书里写的 `firmware/argx_mvp.ino` 扁平布局——扁平布局 IDE 直接打不开。
+2. **引脚别用 GPIO5/6/7**：5 是经典 ESP32 的 strapping 脚，6/7 在那块板上接内部
+   flash，接负载直接起不来。现在用的是 4 / 18 / 17 / 16，两端板子都安全。
+3. **S3-DevKitC-1 有两个 USB 口**。用原生 `USB` 口时必须在 IDE 里开
+   `USB CDC On Boot = Enabled`，否则串口是哑的。见 `firmware/WIRING.md`。
+4. **本机 GitHub 不可达**（超时），但 `downloads.arduino.cc` 与
+   `espressif.github.io` 可达。将来装新工具链先试这两个源。
+5. **没有主机端 C++ 编译器**（无 g++/clang/MSVC）。固件只有「能编译」这一层
+   验证，逻辑正确性靠虚拟设备等价保护——所以两端的仲裁代码必须逐条对齐。
+6. **git 会在 Windows 上把 LF 转 CRLF**（提交时刷 warning）。协议帧定界用的是
+   `\n`，代码里已按 `\r` 可容忍处理，不用管这些 warning。
+7. **虚拟设备的 `send()`**：传对象自动补 `\n`（发一帧）；传字符串原样灌入不补
+   （测垃圾串扰与半行分片）。测试里发垃圾行要自己带 `\n`，否则会粘到下一帧上。
 
 ### 决策记录
-（自己做的每个决策，一行一条）
+
+（详细理由见 `docs/PROGRESS.md` 的决策记录，这里只留长期有效的结论）
+
+- 引脚定 4 / 18 / 17 / 16，理由是双目标板都避开 strapping 与 flash 引脚
+- 能力回调被反复调用（渐变逐帧喂 level），不是只在收到 cue 时调一次
+- `caps` 由注册表遍历生成，任何地方不得手写第二份能力清单
+- 所有被正常处理的 cue 都回 ack，用 `r` 字段区分 applied/preempted/dup/dropped
+- `dur` 缺省 = 30000（即 TTL 上限），防止缺省效果永久占用输出
+- 连点去重纳入参数比较，否则氛围播放中途调不了亮度
