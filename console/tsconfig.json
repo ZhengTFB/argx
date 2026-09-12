@@ -16,7 +16,8 @@
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true
   },
-  // device/ 是阶段一的虚拟设备，模拟器直接复用那一份文件（不复制、不重写），
-  // 所以必须让 TS 把它纳入编译范围，否则副作用导入会报"找不到模块"。
-  "include": ["src", "vite.config.ts", "../device"]
+  // device/ 是阶段一的虚拟设备、sdk/ 是阶段三的网页 SDK，
+  // 两边都是直接复用那一份文件（不复制、不重写），
+  // 所以必须让 TS 把它们纳入编译范围，否则副作用导入会报"找不到模块"。
+  "include": ["src", "vite.config.ts", "../device", "../sdk"]
 }
