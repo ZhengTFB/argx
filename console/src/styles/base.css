@@ -1,0 +1,121 @@
+/* ============================================================
+   基础层：重置、滚动条、关键帧、reduced-motion
+   ============================================================ */
+
+*, *::before, *::after { box-sizing: border-box }
+
+html, body, #root { min-height: 100% }
+
+body {
+  margin: 0;
+  background: var(--bg-app);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  font-size: var(--text-base);
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+  /* 控制台是桌面工具，不要求手机可用，但**不允许出现横向滚动条** */
+  overflow-x: hidden;
+}
+
+button { font-family: inherit; color: inherit; background: none; border: none; padding: 0; cursor: pointer }
+input, select, textarea { font-family: inherit; color: inherit }
+a { color: inherit; text-decoration: none }
+
+/* 全站任何可点击元素都必须有可见的键盘 focus 环（组件清单 §四） */
+:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+  border-radius: var(--radius-sm);
+}
+
+/* 数字与代码一律等宽 + 等宽数字，避免数值变化时宽度跳动 */
+.mono, .num { font-family: var(--font-mono); font-variant-numeric: tabular-nums }
+
+/* 细分隔线 */
+.hr { height: 1px; background: var(--border-subtle); border: 0; margin: var(--space-4) 0 }
+
+/* 只读、不可选中的装饰 */
+.sr-only {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}
+
+.thin-scroll { scrollbar-width: thin; scrollbar-color: var(--border-strong) transparent }
+.thin-scroll::-webkit-scrollbar { width: 8px; height: 8px }
+.thin-scroll::-webkit-scrollbar-track { background: transparent }
+.thin-scroll::-webkit-scrollbar-thumb {
+  background: var(--bg-muted);
+  border-radius: var(--radius-full);
+}
+.thin-scroll::-webkit-scrollbar-thumb:hover { background: var(--border-strong) }
+
+/* ============================================================
+   关键帧（时长与曲线走 06-动效清单）
+   ============================================================ */
+@keyframes dotBreathe   { 0%, 100% { opacity: 1 } 50% { opacity: .45 } }
+@keyframes connBlink    { 0%, 100% { opacity: 1 } 50% { opacity: .35 } }
+@keyframes heartBeat {
+  0%, 100% { opacity: .5; transform: scale(1) }
+  12%      { opacity: 1;  transform: scale(1.14) }
+  24%      { opacity: .7; transform: scale(1) }
+}
+@keyframes stepPulse {
+  0%   { opacity: .5; transform: scale(1) }
+  70%  { opacity: 0;  transform: scale(1.55) }
+  100% { opacity: 0;  transform: scale(1.55) }
+}
+@keyframes wavePulse {
+  0%   { transform: scaleY(.15); opacity: .35 }
+  22%  { transform: scaleY(1);   opacity: 1 }
+  100% { transform: scaleY(.32); opacity: .5 }
+}
+@keyframes buzzShake {
+  from { transform: scaleY(.32) }
+  to   { transform: scaleY(1) }
+}
+@keyframes pageIn {
+  from { opacity: 0; transform: translateY(8px) }
+  to   { opacity: 1; transform: translateY(0) }
+}
+@keyframes shimmer { to { transform: translateX(100%) } }
+@keyframes toastIn {
+  from { opacity: 0; transform: translateY(16px) }
+  to   { opacity: 1; transform: translateY(0) }
+}
+@keyframes toastOut { to { opacity: 0; transform: translateX(8px) } }
+@keyframes phSweep { 0% { left: -40% } 100% { left: 105% } }
+@keyframes scanSpin { to { transform: rotate(360deg) } }
+@keyframes shakeX {
+  0%, 100% { transform: translateX(0) }
+  20% { transform: translateX(-4px) }
+  40% { transform: translateX(4px) }
+  60% { transform: translateX(-3px) }
+  80% { transform: translateX(3px) }
+}
+/* 灯光渐变环 */
+@keyframes ringPulse { to { stroke-dashoffset: 0 } }
+
+/* ============================================================
+   prefers-reduced-motion
+   连续量与开关量的区别靠"过渡"表达，减弱动效下两者都变成瞬时 —— 形式仍在：
+   轨道还是轨道、灯块还是灯块。
+   ============================================================ */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+    scroll-behavior: auto !important;
+  }
+  .pill--idle .dot,
+  .sb-conn::after,
+  .sb-heart.beat svg,
+  .step.act .sdot::after,
+  .pill .dot { animation: none !important; opacity: 1 !important }
+
+  /* 实时可视化降级为静态示意（不是消失） */
+  .buzz.on i { animation: none !important; transform: scaleY(.6) !important }
+  .wave.on i { animation: none !important; transform: scaleY(.7) !important }
+  .skel::after, .ph-line::after { display: none !important }
+}

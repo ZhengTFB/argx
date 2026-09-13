@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ARGX — 把网页变成一间会呼吸的房间</title>
+<meta name="description" content="ARGX 是一套让虚拟故事能操控现实物件的通用连接设施：一块四路输出（灯 / 声音 / 振动 / 继电器）的开发板，通过 USB 串口和网页对话。">
+
+<!-- 设计 token：与 console/ 共用同一份，不复制第二份 -->
+<link rel="stylesheet" href="../design/tokens.css">
+<link rel="stylesheet" href="./landing.css">
+</head>
+<body>
+
+<!-- ================= 背景层（固定，纯静态四层） ================= -->
+<div class="bg" aria-hidden="true">
+  <div class="bg-light"></div>
+  <div class="bg-vignette"></div>
+  <div class="bg-grid"></div>
+  <div class="bg-noise"></div>
+</div>
+
+<!-- ================= 开场动画层（首访播放，可跳过） ================= -->
+<div id="intro" role="dialog" aria-label="开场动画" aria-modal="true" hidden>
+  <div class="intro-stage" aria-live="polite">
+    <div class="intro-word" data-i="0"><span class="ch">更</span><span class="ch">沉</span><span class="ch">浸</span></div>
+    <div class="intro-word" data-i="1"><span class="ch">更</span><span class="ch">恐</span><span class="ch">怖</span></div>
+    <div class="intro-word" data-i="2"><span class="ch">更</span><span class="ch">方</span><span class="ch">便</span></div>
+  </div>
+  <button class="intro-skip" id="introSkip" type="button">跳过 <kbd>ESC</kbd></button>
+</div>
+
+<!-- ================= 页面主体 ================= -->
+<div class="page-shell">
+
+  <nav class="nav" id="nav">
+    <div class="nav-brand">
+      <button class="brand-mark" type="button" aria-label="ARGX" data-goto="#top"><span>A</span></button>
+      <span class="nav-word">ARGX</span>
+      <span class="nav-chip">Developer preview</span>
+    </div>
+    <div class="nav-center">
+      <button class="nav-link" type="button" data-scroll="#capabilities">产品</button>
+      <a class="nav-link" href="../index.html#docs">文档</a>
+      <a class="nav-link" href="../index.html#library">ARG 库</a>
+    </div>
+    <div class="nav-right">
+      <a href="../index.html#onboarding" class="btn btn--md btn--primary">进入控制台 <span class="arrow">→</span></a>
+    </div>
+  </nav>
+
+  <!-- ========== Hero ========== -->
+  <header class="hero" id="top">
+    <div class="hero-grid">
+
+      <div class="hero-left">
+        <h1 class="reveal">把网页变成<em>一间会呼吸的房间</em></h1>
+
+        <div class="hero-body">
+          <p class="hero-lead reveal">
+            ARGX 是一块<strong>四路输出的开发板</strong> —— 灯、声、振动、继电器。
+            它通过 USB 串口和你的网页对话：网页发一行 JSON，设备就执行。
+          </p>
+          <p class="hero-lead hero-lead--sub reveal">
+            节奏由你的游戏控制。翻到哪一页，就发一次 cue。
+            插进你已经做好的网页里，不用重做游戏。
+          </p>
+        </div>
+
+        <div class="hero-cta">
+          <div class="hero-cta-row reveal">
+            <a href="../index.html#onboarding" class="btn btn--lg btn--primary">进入控制台 <span class="arrow">→</span></a>
+            <a href="../index.html#docs" class="btn btn--lg btn--ghost">查看文档</a>
+          </div>
+          <div class="hero-cta-row reveal">
+            <a href="https://github.com" class="btn btn--lg btn--ghost" rel="noopener noreferrer" target="_blank">
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+              在 GitHub 上浏览
+            </a>
+            <a href="../index.html#library" class="btn btn--lg btn--ghost">ARG 库</a>
+          </div>
+        </div>
+
+        <!-- 规格条：用真实参数填住 Hero 下半部，不做无意义的装饰 -->
+        <div class="hero-specs reveal">
+          <div class="spec">
+            <span class="spec-k">4</span>
+            <span class="spec-v">路输出<small>灯 / 声 / 振动 / 继电器</small></span>
+          </div>
+          <span class="spec-div" aria-hidden="true"></span>
+          <div class="spec">
+            <span class="spec-k">&lt;15<small>ms</small></span>
+            <span class="spec-v">指令延迟<small>USB 串口往返</small></span>
+          </div>
+          <span class="spec-div" aria-hidden="true"></span>
+          <div class="spec">
+            <span class="spec-k">1<small>行</small></span>
+            <span class="spec-v">接入成本<small>argx.cue({ … })</small></span>
+          </div>
+        </div>
+      </div>
+
+      <div class="hero-right">
+        <div class="code-tabs reveal" role="tablist" aria-label="接入方式">
+          <button class="code-tab act" type="button" role="tab" aria-selected="true" data-tab="quickstart">快速开始</button>
+          <button class="code-tab" type="button" role="tab" aria-selected="false" data-tab="source">从源码安装</button>
+        </div>
+        <div class="terminal reveal">
+          <div class="terminal-bar">
+            <span class="dots" aria-hidden="true"><i></i><i></i><i></i></span>
+            <span class="fname" id="termName">argx-quickstart</span>
+          </div>
+          <div class="terminal-body">
+            <button class="term-copy" id="copyBtn" type="button" aria-label="复制代码">复制</button>
+            <div id="termLines">
+              <div class="term-line"><span class="prompt">$</span><span class="cmd">npm install @argx/sdk</span></div>
+              <div class="term-line"><span class="prompt">$</span><span class="cmd">npx argx link</span></div>
+              <div class="term-line gap"><span class="prompt">›</span><span class="cmt">// 网页发一行 JSON，设备就执行</span></div>
+              <div class="term-line"><span class="prompt">›</span><span class="cmt">argx.cue({ light: { to: 0, fade: 2000 } })</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </header>
+
+  <!-- ========== 能力三卡 ========== -->
+  <section class="section" id="capabilities">
+    <div class="section-inner">
+      <div class="section-tag reveal">CAPABILITIES</div>
+      <h2 class="reveal">四路输出，<span class="dim">连续与开关并存。</span></h2>
+
+      <div class="cards3">
+        <div class="fcard reveal">
+          <div class="num">01 / CUE</div>
+          <div class="glyph">
+            <svg width="150" height="64" viewBox="0 0 150 64" fill="none" aria-hidden="true">
+              <path d="M6 32h30" stroke="#33373E" stroke-width="1.5"/>
+              <rect x="40" y="18" width="42" height="28" rx="6" stroke="#5B8DEF" stroke-width="1.5" fill="rgba(91,141,239,.10)"/>
+              <rect x="52" y="27" width="18" height="10" rx="3" stroke="#5B8DEF" stroke-width="1.2"/>
+              <path d="M86 32h30" stroke="#33373E" stroke-width="1.5"/>
+              <circle cx="120" cy="32" r="5" fill="#0E9F6E"/>
+              <circle cx="120" cy="32" r="9" stroke="#0E9F6E" stroke-opacity=".28" stroke-width="1.5"/>
+            </svg>
+          </div>
+          <h3>游戏翻页，发一次 cue</h3>
+          <p>节奏由你的游戏控制。翻到哪一页，就发一次指令，灯和声音跟着变。</p>
+        </div>
+
+        <div class="fcard reveal">
+          <div class="num">02 / 4-CHANNEL</div>
+          <div class="glyph">
+            <svg width="150" height="64" viewBox="0 0 150 64" fill="none" aria-hidden="true">
+              <path d="M8 46 L30 46 L30 24 L52 24 L52 38 L74 38 L74 14 L96 14 L96 46 L118 46 L118 30 L142 30"
+                    stroke="#5B8DEF" stroke-width="1.5" stroke-linejoin="round"/>
+              <circle cx="30" cy="24" r="2.5" fill="#F0A020"/>
+              <circle cx="52" cy="38" r="2.5" fill="#3B7BF0"/>
+              <circle cx="74" cy="14" r="2.5" fill="#8B5CF6"/>
+              <circle cx="118" cy="30" r="2.5" fill="#0E9F6E"/>
+            </svg>
+          </div>
+          <h3>连续量配时长，开关量只有两态</h3>
+          <p>灯、声、振是强度加持续时间；继电器只有开与关。区别在界面上直接可见。</p>
+        </div>
+
+        <div class="fcard reveal">
+          <div class="num">03 / SDK</div>
+          <div class="glyph">
+            <svg width="150" height="64" viewBox="0 0 150 64" fill="none" aria-hidden="true">
+              <rect x="16" y="14" width="52" height="36" rx="7" stroke="#33373E" stroke-width="1.5"/>
+              <path d="M28 26h28M28 34h20" stroke="#3A3E46" stroke-width="1.5" stroke-linecap="round"/>
+              <rect x="82" y="14" width="52" height="36" rx="7" stroke="#8B5CF6" stroke-width="1.5" fill="rgba(139,92,246,.10)"/>
+              <path d="M94 26h28M94 34h20" stroke="#8B5CF6" stroke-width="1.5" stroke-linecap="round" stroke-opacity=".7"/>
+              <path d="M70 32h10" stroke="#8B5CF6" stroke-width="1.5"/>
+              <circle cx="77" cy="32" r="3" fill="#8B5CF6"/>
+            </svg>
+          </div>
+          <h3>插进你已经做好的网页</h3>
+          <p>一份 SDK，不用重做游戏。接入、配置、测试、展示，都在控制台完成。</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========== 双入口 ========== -->
+  <section class="section section--tight">
+    <div class="section-inner">
+      <div class="gates">
+        <div class="gate reveal">
+          <div class="g-no">FOR DEVELOPERS</div>
+          <h3>我是开发者</h3>
+          <p class="desc">接入 SDK · 查看协议 · 调参数</p>
+          <a href="../index.html#docs" class="btn btn--lg btn--ghost">进入文档 <span class="arrow">→</span></a>
+        </div>
+        <div class="gate reveal">
+          <div class="g-no">FOR PLAYERS</div>
+          <h3>我是玩家</h3>
+          <p class="desc">选作品 · 连设备 · 开始玩</p>
+          <a href="../index.html#onboarding" class="btn btn--lg btn--primary">进入控制台 <span class="arrow">→</span></a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========== 页脚 ========== -->
+  <footer class="footer">
+    <div class="footer-brand">
+      <span class="brand-mark" aria-hidden="true"><span>A</span></span>
+      ARGX
+    </div>
+    <a href="https://github.com" class="btn btn--lg btn--ghost" rel="noopener noreferrer" target="_blank">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+      在 GitHub 上浏览
+    </a>
+    <div class="footer-links">
+      <a href="../index.html#docs">文档</a>
+      <a href="../index.html#docs">协议</a>
+      <a href="../index.html#device">设备</a>
+    </div>
+    <div class="footer-note">© 2026 ARGX</div>
+  </footer>
+
+</div>
+
+<script src="./landing.js"></script>
+</body>
+</html>

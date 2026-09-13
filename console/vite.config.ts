@@ -7,19 +7,26 @@ import { extname, resolve } from 'node:path';
 const REPO_ROOT = resolve(import.meta.dirname, '..');
 
 /*
- * 让 dev server 与构建产物都能拿到仓库里的 demo/ 与 sdk/。
+ * 让 dev server 与构建产物都能拿到仓库根上的这几个目录。
  *
- * 为什么需要它：小白控制台要把 Demo **原样嵌进来**跑（iframe 指向 demo/index.html），
+ * 为什么需要它：控制台要把 Demo **原样嵌进来**跑（iframe 指向 demo/index.html），
  * 而不是在 React 里重写一遍剧情界面——Demo 是给别人抄的样板，
  * 有两份就一定会有对不上的那一天。
  *
- * 但那两个目录在 console/ 之外，Vite 默认不服务、也不会打进 dist。
+ *   demo/    示例作品（iframe 嵌进来跑）
+ *   sdk/     零依赖网页 SDK（demo/index.html 直接 <script src> 它）
+ *   landing/ 官网首页（阶段四新建，零构建的静态目录）
+ *   design/  设计 token（tokens.css）。放在这里是为了让
+ *            「首页 / 控制台 dev / 控制台 dist / 双击 file://」四种打开方式
+ *            都拿到同一份 token——不复制、不重写第二份。
+ *
+ * 这些目录在 console/ 之外，Vite 默认不服务、也不会打进 dist。
  * 复制一份进 console/ 更简单，但那正是这个项目一直在避免的事
  *（device/virtual_device.js 也是直接复用，不复制）。所以这里做两件事：
- *   dev   加一个中间件，把 /demo/* 与 /sdk/* 映射到仓库根
- *   build 构建完把这两个目录原样拷进 dist（产物仍然是纯静态，可以直接部署）
+ *   dev   加一个中间件，把这几个前缀映射到仓库根
+ *   build 构建完把目录原样拷进 dist（产物仍然是纯静态，可以直接部署）
  */
-const SHARED_DIRS = ['demo', 'sdk'];
+const SHARED_DIRS = ['demo', 'sdk', 'landing', 'design'];
 
 const MIME: Record<string, string> = {
   '.html': 'text/html; charset=utf-8',

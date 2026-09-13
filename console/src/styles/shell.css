@@ -1,0 +1,336 @@
+/* ============================================================
+   壳层：左图标栏 56px ｜ 主区 ｜ 右侧常驻状态栏 76px
+   ============================================================ */
+
+.shell {
+  display: grid;
+  grid-template-columns: var(--sidebar-w) minmax(0, 1fr) var(--status-w);
+  min-height: 100vh;
+}
+
+/* ---------- 左侧图标栏 ---------- */
+.sidebar {
+  position: sticky; top: 0; height: 100vh;
+  display: flex; flex-direction: column; align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-3) 0;
+  background: linear-gradient(180deg, #FCFCFE, #F7F8FA);
+  border-right: 1px solid var(--border-default);
+  box-shadow: inset -1px 0 0 rgba(255, 255, 255, .9);
+  z-index: 20;
+}
+.side-logo {
+  width: 32px; height: 32px; flex: none;
+  margin-bottom: var(--space-4);
+  border-radius: 9px;
+  border: 1.5px solid var(--text-primary);
+  background: var(--bg-surface);
+  display: grid; place-items: center;
+  font-weight: 800; font-size: var(--text-sm);
+  transform: rotate(45deg);
+  box-shadow: var(--shadow-xs);
+  transition: transform var(--dur-normal) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out);
+}
+.side-logo span { transform: rotate(-45deg) }
+.side-logo:hover { transform: rotate(45deg) scale(1.06); box-shadow: var(--shadow-sm) }
+
+.side-item {
+  position: relative; flex: none;
+  width: 40px; height: 40px;
+  display: grid; place-items: center;
+  border-radius: var(--radius-md);
+  color: var(--text-secondary);
+  transition: background-color var(--dur-micro) ease-out, color var(--dur-micro) ease-out;
+}
+.side-item svg { width: 20px; height: 20px }
+.side-item:hover { background: rgba(16, 24, 40, .05); color: var(--text-primary) }
+.side-item.act {
+  background: linear-gradient(180deg, #3B7BF0, #2563EB);
+  color: #fff;
+  box-shadow: var(--shadow-sm), inset 0 1px 0 rgba(255, 255, 255, .18);
+}
+.side-item .tip {
+  position: absolute; left: calc(100% + 10px); top: 50%; z-index: 60;
+  padding: 5px 10px;
+  border-radius: var(--radius-sm);
+  background: var(--text-primary); color: var(--bg-surface);
+  font-size: var(--text-xs); font-weight: 500; white-space: nowrap;
+  opacity: 0; pointer-events: none;
+  transform: translateY(-50%) translateX(-4px);
+  transition: opacity var(--dur-fast) var(--ease-out), transform var(--dur-fast) var(--ease-out);
+}
+.side-item:hover .tip { opacity: 1; transform: translateY(-50%) translateX(0) }
+.side-spacer { flex: 1 }
+
+/* ---------- 主区 ---------- */
+.main { min-width: 0; display: flex; flex-direction: column }
+
+.topbar {
+  position: sticky; top: 0; z-index: 15;
+  display: flex; align-items: center; justify-content: space-between;
+  gap: var(--space-4);
+  padding: var(--space-3) var(--space-8);
+  background: rgba(241, 243, 246, .82);
+  backdrop-filter: blur(18px) saturate(160%);
+  -webkit-backdrop-filter: blur(18px) saturate(160%);
+  border-bottom: 1px solid var(--border-default);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, .9);
+}
+
+.tabs { display: flex; gap: var(--space-1); position: relative }
+.tab {
+  height: 32px; padding: 0 var(--space-3);
+  display: inline-flex; align-items: center; gap: 6px;
+  border-radius: var(--radius-md);
+  font-size: 13.5px; font-weight: 500;
+  color: var(--text-secondary);
+  transition: background-color var(--dur-micro) ease-out,
+              color var(--dur-micro) ease-out,
+              box-shadow var(--dur-fast) var(--ease-out);
+}
+.tab svg { width: 15px; height: 15px; opacity: .85 }
+.tab:hover { background: rgba(16, 24, 40, .05); color: var(--text-primary) }
+.tab.act {
+  background: linear-gradient(180deg, #3B7BF0, #2563EB);
+  color: #fff;
+  box-shadow: var(--shadow-sm), inset 0 1px 0 rgba(255, 255, 255, .18);
+}
+.tab.act svg { opacity: 1 }
+
+.topbar-right { display: flex; align-items: center; gap: var(--space-2); flex: none }
+
+/* 顶部连接徽标：传输类型 + 连没连上。
+   传输类型必须读我们自己记的 kind —— SDK 的 mode() 只要有宿主通道就恒报 'host'，
+   分不出虚拟装置和真串口。 */
+.conn-badge {
+  display: inline-flex; align-items: center; gap: var(--space-2);
+  height: 28px; padding: 0 var(--space-3);
+  border-radius: var(--radius-full);
+  border: 1px solid var(--border-default);
+  background: var(--bg-surface);
+  font-size: var(--text-xs);
+  box-shadow: var(--inner-top);
+}
+.conn-badge .cb-dot { width: 7px; height: 7px; border-radius: 50%; flex: none }
+.conn-badge .cb-kind { color: var(--text-secondary); font-weight: 500 }
+.conn-badge .cb-state { font-weight: 600 }
+.conn-badge.is-on    { border-color: rgba(21, 163, 74, .28) }
+.conn-badge.is-on    .cb-dot { background: var(--success); animation: connBlink 2.6s var(--ease-out) infinite }
+.conn-badge.is-on    .cb-state { color: var(--success-fg) }
+.conn-badge.is-warn  .cb-dot { background: var(--warning) }
+.conn-badge.is-warn  .cb-state { color: var(--warning-fg) }
+.conn-badge.is-off   .cb-dot { background: var(--idle) }
+.conn-badge.is-off   .cb-state { color: var(--idle-fg) }
+
+.content {
+  width: 100%; max-width: var(--content-max);
+  padding: var(--space-8) var(--space-8) var(--space-16);
+}
+
+.page-head {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  gap: var(--space-4); margin-bottom: var(--space-6);
+}
+.page-title { font-size: 23px; font-weight: 700; letter-spacing: -.025em }
+.page-sub { margin-top: var(--space-1); font-size: var(--text-sm); color: var(--text-secondary) }
+.head-actions { display: flex; align-items: center; gap: var(--space-2); flex: none }
+
+/* 页面切换：交叉淡入，不做滑动推挤（只有内容区动） */
+.page { animation: pageIn var(--dur-page) var(--ease-reveal) both }
+
+/* ---------- 右侧常驻状态栏 ---------- */
+.statusbar {
+  position: sticky; top: 0; height: 100vh; width: var(--status-w);
+  display: flex; flex-direction: column; gap: var(--space-2);
+  padding: var(--space-4) var(--space-2) var(--space-3);
+  background: linear-gradient(180deg, #FCFCFE, #F7F8FA);
+  border-left: 1px solid var(--border-default);
+  box-shadow: inset 1px 0 0 rgba(255, 255, 255, .9), -1px 0 0 rgba(16, 24, 40, .02);
+  z-index: 20;
+}
+
+/* 栏头只有连接徽标：四路通道名已经自解释，竖排标题是纯噪声 */
+.sb-head {
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
+  padding-bottom: var(--space-3);
+  margin-bottom: var(--space-2);
+  border-bottom: 1px solid var(--border-subtle);
+}
+.sb-conn {
+  position: relative; flex: none;
+  width: 22px; height: 22px;
+  display: grid; place-items: center;
+  border-radius: var(--radius-sm);
+  background: var(--success-bg); color: var(--success-fg);
+  box-shadow: inset 0 0 0 1px rgba(21, 163, 74, .14);
+}
+.sb-conn svg { width: 13px; height: 13px }
+.sb-conn.off {
+  background: var(--idle-bg); color: var(--idle-fg);
+  box-shadow: inset 0 0 0 1px rgba(16, 24, 40, .07);
+}
+/* 已连接时右上角一个呼吸绿点：链路是活的 */
+.sb-conn:not(.off)::after {
+  content: ""; position: absolute; top: -1px; right: -1px;
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--success);
+  box-shadow: 0 0 0 1.5px #F7F8FA;
+  animation: connBlink 2.6s var(--ease-out) infinite;
+}
+
+.sb-slot {
+  position: relative; flex: 1; min-height: 0;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 7px;
+  border-radius: var(--radius-md);
+  transition: background-color var(--dur-fast) var(--ease-out);
+}
+.sb-slot:hover { background: rgba(16, 24, 40, .035) }
+.sb-slot + .sb-slot::before {
+  content: ""; position: absolute; left: 8px; right: 8px; top: -1px; height: 1px;
+  background: var(--border-subtle);
+}
+
+/* 图标容器：有容器才秒懂"这是什么" */
+.sb-ico {
+  flex: none;
+  width: 26px; height: 26px;
+  display: grid; place-items: center;
+  border-radius: var(--radius-sm);
+  background: var(--ch-soft); color: var(--ch-fg);
+  box-shadow: inset 0 0 0 1px var(--ch-border);
+  transition: transform var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out);
+}
+.sb-ico svg { width: 15px; height: 15px }
+
+/* 中文名常显：解决"这栏在显示什么" */
+.sb-name {
+  font-size: var(--text-3xs); font-weight: 600; line-height: 1;
+  letter-spacing: .01em; color: var(--text-secondary);
+}
+
+/* 连续量：竖向电平轨道。刻度线 + 零点参考线让它看起来像仪表，不像色块 */
+.sb-track {
+  position: relative; flex: 1; min-height: 40px; width: 11px;
+  display: flex; flex-direction: column; justify-content: flex-end;
+  overflow: hidden;
+  border-radius: var(--radius-full);
+  background: var(--bg-muted);
+  box-shadow: inset 0 1px 2px rgba(16, 24, 40, .09);
+}
+.sb-track::before {
+  content: ""; position: absolute; left: -3px; right: -3px; bottom: 14%; height: 1px;
+  background: rgba(16, 24, 40, .13);
+}
+.sb-track::after {
+  content: ""; position: absolute; inset: 0; pointer-events: none; opacity: .55;
+  background-image: repeating-linear-gradient(to bottom,
+    transparent 0 7px, rgba(255, 255, 255, .85) 7px 8px);
+}
+.sb-fill {
+  width: 100%; height: 4%; min-height: 3px;
+  border-radius: var(--radius-full);
+  background: linear-gradient(180deg, var(--ch-c2), var(--ch-c1));
+  box-shadow: 0 0 6px var(--ch-glow);
+  transition: height var(--dur-normal) var(--ease-out);
+}
+
+/* 开关量：ON/OFF 两态灯块（形态即语义，不是轨道） */
+.sb-binary {
+  position: relative; flex: 1; min-height: 40px; width: 18px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+  overflow: hidden;
+  border-radius: var(--radius-xs);
+  background: var(--bg-muted);
+  box-shadow: inset 0 0 0 1px rgba(16, 24, 40, .07);
+}
+.sb-binary::before, .sb-binary::after {
+  font-size: 7px; font-weight: 800; line-height: 1;
+  letter-spacing: .04em; color: var(--text-tertiary);
+}
+.sb-binary::before { content: "ON" }
+.sb-binary::after { content: "OFF" }
+.sb-binary .lamp {
+  width: 9px; height: 9px; border-radius: 50%;
+  background: #C9CFD8;
+  box-shadow: inset 0 1px 2px rgba(16, 24, 40, .20);
+  transition: margin var(--dur-micro) linear, background-color var(--dur-micro) linear;
+}
+/* ★ 硬切：0ms，没有过渡。这是「连续量 vs 开关量」在时间维度上的区分 */
+.sb-binary.on {
+  background: linear-gradient(180deg, var(--ch-c2), var(--ch-c1));
+  transition: none;
+}
+.sb-binary.on::before, .sb-binary.on::after { color: rgba(255, 255, 255, .72) }
+.sb-binary.on .lamp {
+  margin-bottom: -14px;
+  background: #fff;
+  box-shadow: 0 0 8px rgba(255, 255, 255, .85);
+}
+
+.sb-state {
+  padding: 2px 6px;
+  border-radius: var(--radius-xs);
+  background: var(--idle-bg);
+  font-size: 9.5px; font-weight: 600; letter-spacing: .02em; white-space: nowrap;
+  color: var(--text-tertiary);
+  transition: background-color var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
+}
+.sb-slot.is-on .sb-state { background: var(--ch-soft); color: var(--ch-fg) }
+.sb-slot.is-on .sb-ico {
+  transform: scale(1.06);
+  box-shadow: inset 0 0 0 1px var(--ch-border), 0 0 0 3px var(--ch-glow);
+}
+.sb-slot.is-on .sb-name { color: var(--text-primary) }
+
+/* hover 槽位浮出通道标识 */
+.sb-tip {
+  position: absolute; right: calc(100% + 10px); top: 50%; z-index: 60;
+  padding: 5px 10px;
+  border-radius: var(--radius-sm);
+  background: var(--text-primary); color: var(--bg-surface);
+  font-size: var(--text-2xs); font-weight: 500; white-space: nowrap;
+  box-shadow: var(--shadow-lg);
+  opacity: 0; pointer-events: none;
+  transform: translateY(-50%) translateX(4px);
+  transition: opacity var(--dur-fast) var(--ease-out), transform var(--dur-fast) var(--ease-out);
+}
+.sb-tip::after {
+  content: ""; position: absolute; left: 100%; top: 50%;
+  transform: translateY(-50%);
+  border: 4px solid transparent; border-left-color: var(--text-primary);
+}
+.sb-slot:hover .sb-tip { opacity: 1; transform: translateY(-50%) translateX(0) }
+
+.sb-foot {
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--border-subtle);
+}
+.sb-heart {
+  width: 26px; height: 26px;
+  display: grid; place-items: center;
+  border-radius: var(--radius-sm);
+  background: var(--bg-sunken); color: var(--text-tertiary);
+  box-shadow: inset 0 0 0 1px rgba(16, 24, 40, .055);
+}
+.sb-heart svg { width: 14px; height: 14px }
+.sb-heart.beat svg { animation: heartBeat 2s ease-in-out infinite }
+.sb-hb-val {
+  font-family: var(--font-mono); font-variant-numeric: tabular-nums;
+  font-size: 9.5px; color: var(--text-tertiary);
+}
+.sb-foot-lbl {
+  font-size: 8.5px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+
+/* ---------- 窄屏降级（本阶段只保证不崩、不出横向滚动条） ---------- */
+@media (max-width: 1279px) {
+  .content { padding: var(--space-6) var(--space-6) var(--space-12) }
+}
+@media (max-width: 1023px) {
+  .shell { grid-template-columns: var(--sidebar-w) minmax(0, 1fr) }
+  .statusbar { display: none }
+  .topbar { padding: var(--space-3) var(--space-6) }
+}

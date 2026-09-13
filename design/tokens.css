@@ -1,0 +1,236 @@
+/* ============================================================
+   ARGX 设计 Token —— 全项目唯一数值来源
+   ------------------------------------------------------------
+   这是 token 的**结构**，一份；主题值两套：
+     默认        = 控制台（浅色）
+     [data-theme="dark"] = 官网首页（深色）
+
+   值全部取自 design/prototype/*.html 的实际 CSS。
+   原型与 03/04 号文档冲突时以原型为准（文档是解释，原型是事实）。
+
+   消费方：
+     控制台  console/src/index.css  @import 本文件 + @theme 映射成 Tailwind 工具类
+     首页    landing/index.html      <link rel="stylesheet" href="../design/tokens.css">
+
+   组件里禁止写魔法值：所有间距/圆角/色值/时长都从这里的变量取。
+   ============================================================ */
+
+/* ============================================================
+   一、与主题无关：间距 / 圆角 / 字号 / 字体 / 动效 / 层级 / 布局
+   ============================================================ */
+:root {
+  /* ---- 间距阶梯（12 档，基准 4px）---- */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+  --space-24: 96px;
+  --space-32: 128px;
+
+  /* ---- 圆角阶梯（7 档）---- */
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 18px;
+  --radius-2xl: 24px;
+  --radius-full: 9999px;
+
+  /* ---- 字号阶梯（13 档，配 line-height）---- */
+  --text-3xs: 10px;   --text-3xs-lh: 14px;
+  --text-2xs: 11px;   --text-2xs-lh: 16px;
+  --text-xs: 12px;    --text-xs-lh: 18px;
+  --text-sm: 13px;    --text-sm-lh: 20px;
+  --text-base: 14px;  --text-base-lh: 22px;
+  --text-md: 15px;    --text-md-lh: 24px;
+  --text-lg: 16px;    --text-lg-lh: 26px;
+  --text-xl: 18px;    --text-xl-lh: 28px;
+  --text-2xl: 22px;   --text-2xl-lh: 30px;
+  --text-3xl: 28px;   --text-3xl-lh: 36px;
+  --text-4xl: 36px;   --text-4xl-lh: 44px;
+  --text-5xl: 56px;   --text-5xl-lh: 64px;
+  --text-6xl: 80px;   --text-6xl-lh: 88px;
+
+  /* ---- 字体族 ---- */
+  --font-sans: "Inter", -apple-system, "Segoe UI", "PingFang SC",
+               "Microsoft YaHei", "Helvetica Neue", sans-serif;
+  --font-mono: "JetBrains Mono", "SF Mono", "Cascadia Code",
+               ui-monospace, "Consolas", monospace;
+
+  /* ---- 动效时长（6 档）---- */
+  --dur-micro: 90ms;
+  --dur-fast: 140ms;
+  --dur-normal: 260ms;
+  --dur-slow: 360ms;
+  --dur-page: 480ms;
+  --dur-reveal: 700ms;
+  /* 首页开场专用（06-动效清单 §2.1） */
+  --dur-intro-word: 780ms;
+  --dur-intro-char: 700ms;
+
+  /* ---- 缓动（4 档）---- */
+  --ease-out: cubic-bezier(.32, .72, 0, 1);
+  --ease-in-out: cubic-bezier(.65, 0, .35, 1);
+  --ease-reveal: cubic-bezier(.22, 1, .36, 1);
+  --ease-linear: linear;
+
+  /* ---- 层级 ---- */
+  --z-base: 0;
+  --z-sticky: 100;
+  --z-dropdown: 200;
+  --z-overlay: 300;
+  --z-modal: 400;
+  --z-toast: 500;
+  --z-tooltip: 600;
+  /* 首页开场层（组件清单 IntroLayer）：压在一切之上 */
+  --z-intro: 900;
+
+  /* ---- 布局基准（控制台壳层）---- */
+  --sidebar-w: 56px;
+  --status-w: 76px;
+  --content-max: 1280px;
+}
+
+/* ============================================================
+   二、浅色主题（控制台 · Light）
+   ============================================================ */
+:root {
+  --bg-app: #F1F3F6;
+  --bg-surface: #FFFFFF;
+  --bg-surface-hover: #F7F8FA;
+  --bg-elevated: #FFFFFF;
+  --bg-sunken: #F5F6F9;
+  --bg-muted: #EAECF0;
+  --bg-overlay: rgba(16, 24, 40, .40);
+
+  --border-subtle: #EEF0F3;
+  --border-default: #E1E4E9;
+  --border-strong: #CBD0D8;
+  --border-highlight: rgba(255, 255, 255, .9);
+
+  --text-primary: #15171C;
+  --text-secondary: #575E6D;
+  --text-tertiary: #878E9E;
+  --text-disabled: #B0B6C2;
+  --text-inverse: #FFFFFF;
+
+  --accent-50: #EFF4FE;
+  --accent-100: #DCE7FD;
+  --accent-200: #BBD0FB;
+  --accent-300: #8AB0F5;
+  --accent-400: #5B8DEF;
+  --accent-500: #3B7BF0;
+  --accent-600: #2563EB;
+  --accent-700: #1D4ED8;
+
+  --success: #15A34A;  --success-bg: #E7F6EC;  --success-fg: #0E7A38;
+  --warning: #D97706;  --warning-bg: #FEF4E6;  --warning-fg: #A35A05;
+  --danger:  #DC2626;  --danger-bg:  #FDECEC;  --danger-fg:  #B01F1F;
+  --idle:    #878E9E;  --idle-bg:    #EDEEF2;  --idle-fg:    #575E6D;
+  --info-bg: #EAF1FE;  --info-fg:   #1D4ED8;
+
+  /* 阴影（浅色：极淡，靠边界不用阴影堆叠） */
+  --shadow-xs: 0 1px 2px rgba(16, 24, 40, .05);
+  --shadow-sm: 0 1px 3px rgba(16, 24, 40, .06), 0 1px 2px rgba(16, 24, 40, .04);
+  --shadow-md: 0 4px 12px rgba(16, 24, 40, .07), 0 2px 4px rgba(16, 24, 40, .04);
+  --shadow-lg: 0 8px 24px rgba(16, 24, 40, .09), 0 2px 6px rgba(16, 24, 40, .04);
+  --shadow-xl: 0 16px 48px rgba(16, 24, 40, .13), 0 4px 12px rgba(16, 24, 40, .06);
+  --shadow-focus: 0 0 0 3px rgba(37, 99, 235, .16);
+  --shadow-focus-danger: 0 0 0 3px rgba(220, 38, 38, .16);
+  --inner-top: inset 0 1px 0 var(--border-highlight);
+  --inner-well: inset 0 1px 2px rgba(16, 24, 40, .045);
+
+  /* 四路通道色（浅色主题值） */
+  --ch-light: #E8930F;  --ch-light-soft: #FEF4E4;  --ch-light-fg: #8A5A00;  --ch-light-c2: #F7BE4E;
+  --ch-sound: #3B7BF0;  --ch-sound-soft: #EBF2FE;  --ch-sound-fg: #1D4ED8;  --ch-sound-c2: #7FA8F7;
+  --ch-motion: #8B5CF6; --ch-motion-soft: #F3EEFE; --ch-motion-fg: #6D28D9; --ch-motion-c2: #B18CFA;
+  --ch-relay: #0E9F6E;  --ch-relay-soft: #E6F6F0;  --ch-relay-fg: #0A6E4C;  --ch-relay-c2: #12B37C;
+}
+
+/* ============================================================
+   三、深色主题（官网首页 · Dark）
+   ============================================================ */
+[data-theme="dark"] {
+  --bg-app: #0A0B0D;
+  --bg-surface: #141518;
+  --bg-surface-hover: #1A1C20;
+  --bg-elevated: #1C1E23;
+  --bg-sunken: #0F1013;
+  --bg-muted: #26282E;
+  --bg-overlay: rgba(0, 0, 0, .68);
+
+  --border-subtle: #1E2025;
+  --border-default: #2A2D33;
+  --border-strong: #3A3E46;
+  --border-highlight: rgba(255, 255, 255, .085);
+
+  --text-primary: #F2F3F5;
+  --text-secondary: #A8ADB8;
+  --text-tertiary: #71767F;
+  --text-disabled: #4C5058;
+  --text-inverse: #0A0B0D;
+
+  --accent-300: #8AB0F5;
+  --accent-400: #5B8DEF;
+  --accent-500: #3B7BF0;
+  --accent-600: #2563EB;
+
+  --success: #2ECC71;  --success-bg: rgba(46, 204, 113, .14);  --success-fg: #4FD98A;
+  --warning: #F5A524;  --warning-bg: rgba(245, 165, 36, .14);  --warning-fg: #F5B95C;
+  --danger:  #F04C4C;  --danger-bg:  rgba(240, 76, 76, .14);   --danger-fg:  #F57878;
+  --idle:    #71767F;  --idle-bg:    rgba(255, 255, 255, .06); --idle-fg:    #A8ADB8;
+  --info-bg: rgba(91, 141, 239, .16); --info-fg: #8AB0F5;
+
+  /* 阴影：深色底吃阴影，必须加重（配色方案 §5） */
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, .30);
+  --shadow-sm: 0 2px 6px rgba(0, 0, 0, .36), 0 1px 2px rgba(0, 0, 0, .24);
+  --shadow-md: 0 6px 16px rgba(0, 0, 0, .44), 0 2px 6px rgba(0, 0, 0, .28);
+  --shadow-lg: 0 12px 32px rgba(0, 0, 0, .52), 0 4px 10px rgba(0, 0, 0, .30);
+  --shadow-xl: 0 24px 64px rgba(0, 0, 0, .60), 0 8px 20px rgba(0, 0, 0, .40);
+  --shadow-focus: 0 0 0 3px rgba(91, 141, 239, .32);
+  --shadow-focus-danger: 0 0 0 3px rgba(240, 76, 76, .32);
+  --inner-top: inset 0 1px 0 var(--border-highlight);
+  --inner-well: inset 0 1px 2px rgba(0, 0, 0, .35);
+
+  /* 四路通道色（深色主题值）。原型只给了基色；
+     柔光底/前景色按配色方案 §1「深色状态色 = 基色 14% 透明底」的同一配方派生。 */
+  --ch-light: #F0A020;  --ch-light-soft: color-mix(in srgb, #F0A020 14%, transparent);
+  --ch-light-fg: color-mix(in srgb, #F0A020 72%, #FFFFFF);  --ch-light-c2: #F7BE4E;
+  --ch-sound: #3B7BF0;  --ch-sound-soft: color-mix(in srgb, #3B7BF0 14%, transparent);
+  --ch-sound-fg: color-mix(in srgb, #3B7BF0 60%, #FFFFFF);  --ch-sound-c2: #7FA8F7;
+  --ch-motion: #8B5CF6; --ch-motion-soft: color-mix(in srgb, #8B5CF6 14%, transparent);
+  --ch-motion-fg: color-mix(in srgb, #8B5CF6 62%, #FFFFFF); --ch-motion-c2: #B18CFA;
+  --ch-relay: #0E9F6E;  --ch-relay-soft: color-mix(in srgb, #0E9F6E 14%, transparent);
+  --ch-relay-fg: color-mix(in srgb, #0E9F6E 60%, #FFFFFF);  --ch-relay-c2: #12B37C;
+}
+
+/* ============================================================
+   四、通道作用域
+   ------------------------------------------------------------
+   给任意元素加 data-ch="light|sound|motion|relay"，
+   它自己与子树就能用 --ch / --ch-soft / --ch-fg / --ch-border / --ch-glow。
+   通道卡、右栏槽位、作品卡的硬件点阵共用这一份，避免颜色抄三遍。
+
+   --ch-border / --ch-glow 由基色派生（浅色用固定透明度，
+   深色靠 color-mix 自动适配），保证「同色相、不同明度」这条总则不破。
+   ============================================================ */
+[data-ch="light"]  { --ch: var(--ch-light);  --ch-c1: var(--ch-light);  --ch-c2: var(--ch-light-c2);
+                     --ch-soft: var(--ch-light-soft);  --ch-fg: var(--ch-light-fg); }
+[data-ch="sound"]  { --ch: var(--ch-sound);  --ch-c1: var(--ch-sound);  --ch-c2: var(--ch-sound-c2);
+                     --ch-soft: var(--ch-sound-soft);  --ch-fg: var(--ch-sound-fg); }
+[data-ch="motion"] { --ch: var(--ch-motion); --ch-c1: var(--ch-motion); --ch-c2: var(--ch-motion-c2);
+                     --ch-soft: var(--ch-motion-soft); --ch-fg: var(--ch-motion-fg); }
+[data-ch="relay"]  { --ch: var(--ch-relay);  --ch-c1: var(--ch-relay);  --ch-c2: var(--ch-relay-c2);
+                     --ch-soft: var(--ch-relay-soft);  --ch-fg: var(--ch-relay-fg); }
+
+[data-ch] {
+  --ch-border: color-mix(in srgb, var(--ch) 16%, transparent);
+  --ch-glow: color-mix(in srgb, var(--ch) 34%, transparent);
+  --ch-ring: color-mix(in srgb, var(--ch) 16%, transparent);
+}

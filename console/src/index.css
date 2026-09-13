@@ -1,115 +1,110 @@
+/* ============================================================
+   ARGX 控制台样式入口
+   ------------------------------------------------------------
+   三层，顺序不能乱：
+     1. design/tokens.css   设计变量（与控制台、首页共用同一份）
+     2. tailwindcss         preflight 兜底
+     3. 本目录下的组件样式   全部走 token，**不写魔法值**
+
+   为什么不用 Tailwind 工具类铺满组件：
+   这套界面的原型（design/prototype/console.html）是一份写得很紧的普通 CSS，
+   端点、mask、轨道刻线这些细节直接照搬比翻译成工具类可靠。
+   Tailwind 在这里承担两件事：preflight，以及把 token 映射成可用的工具类名
+   （下面 @theme 那段）——组件里要写布局时仍然可以用 flex/gap 这些。
+   ============================================================ */
+
+/* @import 必须全部排在其它规则之前，否则会被 CSS 规范判为无效 */
+@import '../../design/tokens.css';
 @import 'tailwindcss';
+@import './styles/base.css';
+@import './styles/shell.css';
+@import './styles/ui.css';
+@import './styles/sections.css';
 
-/*
- * 配色与动画自己定的，以信息密度和可读性优先。
- * 深色底：这套界面长时间盯着看，且要和"装置在发光"这件事形成对比。
- */
+/* ------------------------------------------------------------
+   ⚠️ 命名地雷：本项目的组件类名与 Tailwind 的工具类共用一个命名空间。
+   组件里出现过的类名，Tailwind 会当成候选去生成工具类 ——
+   `.ring` 就撞上了 Tailwind 的 `ring-1`（1px 描边），
+   结果是灯光那个渐变环外面凭空多了一圈黑边，而且看不出是谁画的。
+   所以：**新加组件类名之前，先确认它不是 Tailwind 的工具类名**。
+   已经撞过并改名的一处：`.ring` → `.light-ring`。
+   ------------------------------------------------------------ */
+
+/* ------------------------------------------------------------
+   把 token 映射成 Tailwind 工具类。
+   组件里禁止写魔法值，需要的值一律从这里取。
+   ------------------------------------------------------------ */
 @theme {
-  --color-ink-950: #0b0e14;
-  --color-ink-900: #11151d;
-  --color-ink-800: #182029;
-  --color-ink-700: #232c38;
-  --color-ink-600: #3a4757;
-  --color-ink-400: #7c8b9e;
-  --color-ink-200: #c2cddb;
-  --color-argx-500: #35d0ba;
-  --color-argx-400: #5ce0cc;
-  --color-warn-400: #f5b544;
-  --color-danger-400: #f2705d;
+  --color-app: var(--bg-app);
+  --color-surface: var(--bg-surface);
+  --color-surface-hover: var(--bg-surface-hover);
+  --color-elevated: var(--bg-elevated);
+  --color-sunken: var(--bg-sunken);
+  --color-muted: var(--bg-muted);
+  --color-overlay: var(--bg-overlay);
 
-  /*
-   * 浅色一套，只给小白控制台用（阶段三）。
-   * 深色那套是给"盯着协议看很久"的人用的，而小白版的使用者是第一次打开、
-   * 想看看这东西怎么玩的人——白底、少字、大按钮。
-   * 命名和 ink-* 不重叠，所以两套界面互不影响。
-   * 青色比深色版的 argx-500 深一档：白底上要保证对比度够。
-   */
-  --color-paper-0: #ffffff;
-  --color-paper-50: #f7f8fa;
-  --color-paper-100: #f0f2f6;
-  --color-paper-200: #e5e9ef;
-  --color-line-300: #dfe3ea;
-  --color-line-400: #c6ccd6;
-  --color-fg-900: #1b2430;
-  --color-fg-700: #3d4854;
-  --color-fg-600: #5c6775;
-  --color-fg-400: #8b95a3;
-  --color-brand-700: #0b7d6f;
-  --color-brand-600: #0e9280;
-  --color-brand-500: #12a893;
-  --color-brand-100: #d6f2ec;
-  --color-brand-50: #eaf8f5;
-  --color-good-600: #16a34a;
-  --color-good-50: #e9f8ee;
-  --color-warn-600: #b7791f;
-  --color-warn-50: #fdf5e4;
-}
+  --color-line: var(--border-default);
+  --color-line-subtle: var(--border-subtle);
+  --color-line-strong: var(--border-strong);
 
-html,
-body,
-#root {
-  height: 100%;
-}
+  --color-fg: var(--text-primary);
+  --color-fg-2: var(--text-secondary);
+  --color-fg-3: var(--text-tertiary);
+  --color-fg-disabled: var(--text-disabled);
+  --color-fg-inverse: var(--text-inverse);
 
-body {
-  margin: 0;
-  background: var(--color-ink-950);
-  color: var(--color-ink-200);
-  font-family: ui-sans-serif, system-ui, 'Segoe UI', 'Microsoft YaHei', sans-serif;
-  font-size: 14px;
-}
+  --color-accent-50: var(--accent-50);
+  --color-accent-100: var(--accent-100);
+  --color-accent-200: var(--accent-200);
+  --color-accent-300: var(--accent-300);
+  --color-accent-400: var(--accent-400);
+  --color-accent-500: var(--accent-500);
+  --color-accent-600: var(--accent-600);
+  --color-accent-700: var(--accent-700);
 
-/* 时间线滚动条细一点，省地方 */
-.thin-scroll::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
-.thin-scroll::-webkit-scrollbar-thumb {
-  background: var(--color-ink-700);
-  border-radius: 4px;
-}
+  --color-success: var(--success);
+  --color-success-bg: var(--success-bg);
+  --color-success-fg: var(--success-fg);
+  --color-warning: var(--warning);
+  --color-warning-bg: var(--warning-bg);
+  --color-warning-fg: var(--warning-fg);
+  --color-danger: var(--danger);
+  --color-danger-bg: var(--danger-bg);
+  --color-danger-fg: var(--danger-fg);
+  --color-idle: var(--idle);
+  --color-idle-bg: var(--idle-bg);
+  --color-idle-fg: var(--idle-fg);
+  --color-info-bg: var(--info-bg);
+  --color-info-fg: var(--info-fg);
 
-/* ---- 虚拟装置的可视化动画 ---- */
+  --radius-xs: var(--radius-xs);
+  --radius-sm: var(--radius-sm);
+  --radius-md: var(--radius-md);
+  --radius-lg: var(--radius-lg);
+  --radius-xl: var(--radius-xl);
+  --radius-2xl: var(--radius-2xl);
 
-/* 声音：向外扩散的涟漪 */
-@keyframes argx-ripple {
-  0% {
-    transform: scale(0.4);
-    opacity: 0.7;
-  }
-  100% {
-    transform: scale(1.6);
-    opacity: 0;
-  }
-}
-.argx-ripple {
-  animation: argx-ripple 1.1s ease-out infinite;
-}
+  --shadow-xs: var(--shadow-xs);
+  --shadow-sm: var(--shadow-sm);
+  --shadow-md: var(--shadow-md);
+  --shadow-lg: var(--shadow-lg);
+  --shadow-xl: var(--shadow-xl);
+  --shadow-focus: var(--shadow-focus);
 
-/* 振动：左右抖动，幅度由 --argx-shake 控制 */
-@keyframes argx-shake {
-  0%,
-  100% {
-    transform: translateX(calc(var(--argx-shake) * -1));
-  }
-  50% {
-    transform: translateX(var(--argx-shake));
-  }
-}
-.argx-shake {
-  animation: argx-shake 0.08s linear infinite;
-}
+  --font-sans: var(--font-sans);
+  --font-mono: var(--font-mono);
 
-/* 心跳：连接正常时状态点轻微呼吸 */
-@keyframes argx-pulse {
-  0%,
-  100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.35;
-  }
-}
-.argx-pulse {
-  animation: argx-pulse 2s ease-in-out infinite;
+  --text-3xs: var(--text-3xs);
+  --text-2xs: var(--text-2xs);
+  --text-xs: var(--text-xs);
+  --text-sm: var(--text-sm);
+  --text-base: var(--text-base);
+  --text-md: var(--text-md);
+  --text-lg: var(--text-lg);
+  --text-xl: var(--text-xl);
+  --text-2xl: var(--text-2xl);
+  --text-3xl: var(--text-3xl);
+
+  --ease-out: var(--ease-out);
+  --ease-reveal: var(--ease-reveal);
 }

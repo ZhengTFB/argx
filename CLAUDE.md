@@ -3,8 +3,11 @@
 你是本项目的实现者。本文件在每次会话自动加载，是唯一常驻入口。
 **开工前完整读完本文件；进入某阶段前，完整读完该阶段任务书。**
 
-> **当前阶段是「阶段四：界面重做」。**
-> 除本文件外，开工前还要读 `design/README.md`。
+> **当前阶段是「阶段五：开源发布与仓库拆分」。**
+>
+> 阶段四（界面重做）已完成并验收通过。阶段五做的是**把已经做完的东西发布出去**：
+> 建仓 → 部署 GitHub Pages → 拆两个仓库 → 写两份 README → 开源。
+> **不新增功能、不改界面、不动协议。**
 >
 > **两条最重要的原则先记住：**
 >
@@ -83,6 +86,7 @@ argx/
 │   ├── ARGX-02-控制台与模拟器.md      # ⚠️ 界面部分已作废
 │   ├── ARGX-03-Demo与SDK.md
 │   ├── ARGX-04-界面重做.md            # ← 界面怎么做看这份
+│   ├── ARGX-05-开源发布.md            # ← 发布/拆仓看这份（阶段五）
 │   └── PROGRESS.md        # 阶段状态，你每次收尾时更新
 ├── design/                # ★ 界面设计真源（原型 + 设计文档）
 │   ├── README.md          #   入口：谁权威、怎么用
@@ -165,11 +169,10 @@ argx/
 进度总览：@docs/PROGRESS.md
 
 当前阶段任务书（阶段推进后，把这一行改成对应文件）：
-@docs/ARGX-04-界面重做.md
+@docs/ARGX-05-开源发布.md
 
-> **阶段四开工前，除本文件外还要先读两份：**
-> `@design/README.md`（界面真源在哪、谁权威）与 `@docs/PROGRESS.md` 的
-> 「界面设计真源变更」一节（作废了什么、留下了什么）。
+> **阶段五开工前，除本文件外还要先读 `@docs/PROGRESS.md`**，
+> 确认阶段四已通过审查、没有遗留未做的事，且工作区是干净的。
 >
 > 同一会话内切换阶段时，本文件的修改不会立即生效——此时直接用 Read 工具打开新阶段任务书。
 
@@ -192,12 +195,13 @@ node tests/sdk_smoke.js           # SDK 接虚拟设备真跑一遍（23 项）
 node tests/agents_guide.js        # 照着 sdk/AGENTS.md 抄一遍能不能跑（12 项）
 node tests/demo_smoke.mjs         # Demo 端到端，自带静态服务器（26 项）
 
-# 控制台（阶段二产物；阶段四按 design/ 重做界面）
+# 控制台（阶段四已按 design/ 重做）
 cd console
 npm install
 npm run dev                       # http://localhost:5173
-npm run build                     # 类型检查 + 打包 → dist/（纯静态，含 demo/ 与 sdk/）
-node scripts/smoke.mjs            # 控制台端到端，需先 npm run dev（阶段四按新界面重写）
+npm run build                     # 类型检查 + 打包 → dist/（纯静态，含 demo/ sdk/ landing/ design/）
+npm run dev                       # 另开一个终端，冒烟要先有 dev server
+node scripts/smoke.mjs            # 控制台端到端（90 项，零依赖，无头 Edge + DevTools 协议）
 
 # 编译固件（本机没有 g++/clang，C++ 只能靠这条）
 CLI=/c/Users/msa/.argx-tools/arduino-cli.exe
@@ -205,18 +209,23 @@ $CLI compile -b esp32:esp32:esp32s3 firmware/argx_mvp    # 目标板 S3
 $CLI compile -b esp32:esp32:esp32   firmware/argx_mvp    # 老款 WROOM-32E
 ```
 
-控制台的分区可以直接用 hash 打开。**阶段四起只有一套界面，hash 空间按新栏目重定：**
+首页（`landing/`）**零构建**：双击 `landing/index.html` 就能看，
+或经控制台的 dev server 访问 `http://localhost:5173/landing/`。
 
-- `#onboarding` `#library` `#device` `#simulator` `#docs` `#debug`
+控制台的分区可以直接用 hash 打开。**只有一套界面，hash 空间就是这七个：**
 
-> ⚠️ 旧的两套 hash 空间（小白版的 `#home` `#help` `#play:<id>`、
-> 专业版的 `#overview` `#works` `#timeline` `#creator`）**已作废**。
-> `#device` `#library` `#simulator` `#docs` 语义没变可以复用；
-> 其余旧 hash 要重定向到最接近的新栏目，**不留死链**。
-> 具体映射由阶段四实施时定，写进决策记录。
+```
+#onboarding  #library  #device  #simulator  #docs  #debug  #play:<workId>
+```
+
+> ⚠️ 旧的两套 hash 空间（小白版的 `#home` `#help`、专业版的 `#overview` `#works`
+> `#timeline` `#creator`）**已作废**。它们会**被重定向到最接近的新栏目并改写地址栏**，
+> 不留死链。映射表见 `console/src/routes.ts` 的 `OLD_HASH_MAP`：
 >
-> `scripts/smoke-basic.mjs`（旧小白版冒烟）与旧的 `scripts/smoke.mjs`
-> 已在阶段四**删除并重写**。
+> `#overview` `#devices` → `#device` ｜ `#home` `#help` → `#onboarding`
+> ｜ `#works` `#creator` → `#library` ｜ `#timeline` → `#debug`
+>
+> `scripts/smoke-basic.mjs` 与旧的 `scripts/smoke.mjs` 已在阶段四**删除并重写**成一个。
 
 `arduino-cli.exe` 故意放在仓库外（`C:\Users\msa\.argx-tools\`），不要提交进仓库。
 esp32 core 3.3.11 已装好，不需要再 `core install`。
@@ -227,23 +236,26 @@ esp32 core 3.3.11 已装好，不需要再 `core install`。
 |---|---|---|
 | `protocol/` | 协议规范，**唯一权威**。两端实现都从它派生 | 全部 |
 | `firmware/argx_mvp/` | Arduino 草稿目录。会话层 + 能力层 + 入口 | — |
-| `device/` | 虚拟设备，协议的第二实现，也是控制台模拟器的底座 | 阶段二 |
+| `device/` | 虚拟设备，协议的第二实现，也是控制台模拟器的底座 | 控制台 |
 | `tests/` | 标准帧序列 + 跑它的命令行脚本 | 全部 |
-| `console/` | 中枢控制台（Vite + React + TS + Tailwind）。模拟器**直接引用** `device/virtual_device.js`，不复制不重写 | 唯一一套界面 |
-| `design/` | **界面设计真源**。`prototype/*.html` 是最终视觉答案；六份设计文档解释每个决定 | 全部界面 |
-| `landing/` | 官网首页（阶段四建）。独立于控制台，不做数据、不做路由 | — |
+| `console/` | 中枢控制台（Vite + React + TS）。模拟器**直接引用** `device/virtual_device.js`，不复制不重写 | 唯一一套界面 |
+| `design/` | **界面设计真源**。`prototype/*.html` 是最终视觉答案；六份设计文档解释每个决定；`tokens.css` 是共享的设计变量 | 全部界面 |
+| `landing/` | 官网首页。**零构建**（原生 HTML/CSS/JS），独立于控制台，不做数据、不做路由 | — |
 | `sdk/` | 网页 SDK，零依赖纯原生 JS + `AGENTS.md`（给 AI 看的集成规范） | 全部第三方作品 |
 | `demo/` | 示例作品。`script.json` 是剧本数据，控制台的 ARG 库也读同一份 | 控制台的播放器 |
 
 控制台里几块的分工：
 
-- `transports/`（通道）、`core/`（会话层与状态，**不依赖框架**）
-- `works.ts`（作品数据）、`data/`（剧本数据）
-- 界面代码按新栏目组织（阶段四重做）——栏目清单见 `design/01-信息架构.md`
+- `transports/`（通道，接口契约冻结）、`core/`（连接、会话、流）
+- `core/device.ts` —— **全站唯一调用 ARGX API 的模块**，
+  也是唯一调 `ARGX.state()` 的地方（原因见文件头注释，两条都是踩出来的）
+- `ui/`（可复用组件）、`sections/`（六个栏目）、`data/`（文档与剧本数据）
+- `works.ts`（作品数据）、`routes.ts`（hash 空间与旧 hash 映射）
 
 > ⚠️ 旧的 `panels/`（专业版面板）、`simulator/`（旧模拟器 UI）、
-> `views/pro/`（专业版外壳）、`views/basic/`（小白版）**四个目录已在阶段四删除**。
-> 现在只有一套界面。
+> `views/pro/`（专业版外壳）、`views/basic/`（小白版）、`core/connection.ts`、
+> `core/store.ts`、`core/basicDevice.ts` **都已在阶段四删除**。
+> 现在只有一套界面、一条连接。
 
 改协议的顺序永远是：先改 `protocol/`，再改 `firmware/` 与 `device/`，最后补 `tests/`。
 
@@ -262,8 +274,10 @@ esp32 core 3.3.11 已装好，不需要再 `core install`。
    flash，接负载直接起不来。现在用的是 4 / 18 / 17 / 16，两端板子都安全。
 3. **S3-DevKitC-1 有两个 USB 口**。用原生 `USB` 口时必须在 IDE 里开
    `USB CDC On Boot = Enabled`，否则串口是哑的。见 `firmware/WIRING.md`。
-4. **本机 GitHub 不可达**（超时），但 `downloads.arduino.cc` 与
-   `espressif.github.io` 可达。将来装新工具链先试这两个源。
+4. **GitHub 现在可达了**（2026-09-13 实测）：`gh auth login --web` 设备码流程走通，
+   `gh` 已登录为 `ZhengTFB`。但 **`winget` 默认的 `msstore` 源仍然不可达**
+   （报 `12029` / `0x80072efd`），装工具一律加 `--source winget`。
+   `downloads.arduino.cc` 与 `espressif.github.io` 也可达。
 5. **没有主机端 C++ 编译器**（无 g++/clang/MSVC）。固件只有「能编译」这一层
    验证，逻辑正确性靠虚拟设备等价保护——所以两端的仲裁代码必须逐条对齐。
 6. **git 会在 Windows 上把 LF 转 CRLF**（提交时刷 warning）。协议帧定界用的是
@@ -293,6 +307,43 @@ esp32 core 3.3.11 已装好，不需要再 `core install`。
     绝不能改成"我们发过了所以算通过"——装置拔了线那样也会全绿，自检就白做了。
 16. **dev server 端口被占时 Vite 会自己换一个**（5173 被占就用 5174），
     而 `smoke.mjs` 默认打 5173。跑冒烟前先确认端口，别对着一个空端口跑。
+    **而且只 `pkill vite` 常常杀不掉**——旧进程还占着 5173，新进程悄悄换到 5174，
+    你以为刷新了其实看的还是旧页面。用 `netstat -ano | grep ":5173 "` 找 PID 再 `taskkill //F //PID`。
+
+17. **组件类名和 Tailwind 工具类共用一个命名空间**。组件里出现过的类名，
+    Tailwind 会当成候选去生成工具类 —— `.ring` 就撞上了 Tailwind 的 `ring-1`，
+    结果灯光那个渐变环外面凭空多了一圈黑边，而且看不出是谁画的。
+    已经撞过一次并改名：`.ring` → `.light-ring`。加新类名之前先确认它不是 Tailwind 的工具类。
+
+18. **旧 hash 改写必须发生在「读到 hash 的那一刻」**，不能放进 `useEffect` 靠 route 变化触发。
+    `#overview` 和 `#devices` 都映射到 `#device`，第二次进来时 rewrite 的字符串和上次一样，
+    依赖没变 effect 就不会再跑，地址栏停在旧值上。见 `App.tsx` 的 `syncHash()`。
+
+19. **短效果会整个落进 800ms 轮询的空隙里**。振动 dur 300ms、短鸣 500ms，
+    而右栏靠 `query` 回查、800ms 一次 —— 等下一拍再查，效果早结束了，
+    右栏从头到尾都不会显示过。所以 `device.cue/batch/fire/reset` **发完立刻回查一次**。
+    这不是本地记账（那仍然禁止），走的是同一条 query → state 链路，只是把时机提前。
+
+20. **只在连接那一刻生效的故障，拨开关必须重连才看得见**（不发 ready / 延迟应答 / 中途断连）：
+    它们要么在 `connect()` 里排定时器，要么在握手时生效。所以 `setFault` 带一个 `restart` 参数，
+    拨到这一类会自动重连一次 —— 不这样的话，就只能靠一行小字说「重连后生效」，而没人会去重连。
+
+21. **`MockTransport` 不能复用实例**。`VirtualDevice.close()` 不清 `_lineListeners`，
+    而 `MockTransport.connect()` 每次都重新注册 —— 复用 + 重连 N 次 = 每帧被投递 N 次、
+    还留着 N 个僵尸会话。所以每次 attach 新建一个，**故障开关作为控制台自己的状态**
+    保存下来、在 attach 时重新 `setFaults` 施加。
+
+22. **`ARGX.mode()` 分不出模拟器和真机**：只要往 `ARGX.init` 传的是 Transport 对象，
+    它一律包成 `HostTransport`，`mode()` 恒为 `'host'`。传输类型必须由控制台自己记。
+
+23. **`ARGX.state()` 的应答是先进先出配对的，不看 `seq`**（`_pendingState.shift()`）。
+    两个调用者同时查，第二个的应答会解到第一个头上。所以全站**只有一个调用点**
+    （`core/device.ts` 里的轮询器），别处一律走 `queryNow()` —— 它挂在下一个完成的查询上，
+    保证任何时刻只有一个 state 请求在飞。
+
+24. **`ARGX.on` 每个事件类型只能注册一次，退订必须用精确 token**：
+    不带处理器的 `off(type)` 会清空整张处理器表，两个组件各订阅一次再各自退订就会互相抹掉。
+    所以事件接线只在 `core/device.ts` 的模块初始化里做一次，组件一律不 import `core/sdk`。
 
 ### 决策记录
 
@@ -336,3 +387,30 @@ esp32 core 3.3.11 已装好，不需要再 `core install`。
 - 动效只动 `transform` / `opacity` / `filter` / 颜色 / `box-shadow` / `clip-path`
 - 连续量（灯/声/振动）与开关量（继电器）**在视觉形态与切换动效上必须区分**
 - `core/session.ts` 的行为、`transports/` 的契约、`device/virtual_device.js` 一个字不改
+
+阶段四（界面重做）执行时定下的：
+
+- 全站**只有一条连接**，就是 SDK 那条；`core/connection.ts` 与 `core/store.ts` 已删除，
+  有用的内容（帧日志 / 心跳延迟序列 / 回执与错误计数）搬进 `core/device.ts` + `core/streams.ts`
+- **`core/device.ts` 是全站唯一调用 ARGX API 的模块**，也是唯一调 `ARGX.state()` 的地方
+- 界面样式**全部走 `design/tokens.css`**（`design/` 下唯一一个代码文件），
+  只有一份 token 结构、两套主题值；首页/控制台 dev/dist/双击 file:// 四种打开方式共用它
+- 组件样式是**普通 CSS**（镜像原型写法），Tailwind 只承担 preflight 与 token 映射
+- **缩到 1425px 可视宽（1440 窗口）是设计基准**，断点不能定在 1439，
+  否则基准宽度下会少排一列、还把文档的「本页目录」藏掉
+- 不引 Google Fonts CDN，走 token 里的字体栈（离线与 file:// 都要能用）
+- 故障注入面板在模拟器页与调试页**共用同一个组件**（任务书两处都要求有它）
+- 「全部触发」走一条 `batch`（`fire()` 的词表里没有 `env.relay`，逐条发也做不到同时）
+- 引导页的步骤 2/3 与原型不同：Web Serial 没有端口枚举，改成「选装置 → 点连接 → 在系统弹窗里选端口」
+- 设备页的四张 KPI 换成真实数据（设备 ID / 传输通道 / 心跳延迟 / 在线时长）；
+  原型的「固件版本」「供电电压」「可用设备列表」在协议里没有出处，不做
+
+阶段五（开源发布与仓库拆分）：
+
+- 拆**两个**仓库：`argx`（核心）+ `argx-esp32`（ESP32 适配器）。**不用 submodule**，
+  相互依赖的文件两边各放一份
+- **先单仓跑通 Pages 部署，再拆仓**——拆仓会动目录结构，先部署能避免同时调两个变量
+- Pages 是 HTTPS，所以 **Web Serial 可用**；但连的是**访问者自己电脑的 USB 口**
+- 仲裁逻辑在固件与虚拟设备里各有一份实现，拆仓后必须加**互指注释**防漂移
+- 两份 README：主仓走基础设施风（`vite` 那类），硬件仓走硬件项目风（`qmk` 那类）
+- 完全开源，默认 MIT
