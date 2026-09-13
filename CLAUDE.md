@@ -3,19 +3,17 @@
 你是本项目的实现者。本文件在每次会话自动加载，是唯一常驻入口。
 **开工前完整读完本文件；进入某阶段前，完整读完该阶段任务书。**
 
-> **当前阶段：先把「阶段五收尾」做完，再进阶段六。**
+> **当前阶段：阶段六已做完，等审查。**
 >
-> - **阶段五（开源发布与仓库拆分）主体已完成，还剩三件收尾**：①浏览器类检查进 CI、
->   ②对齐 `demo` 的「灯亮 / 灯灭」、③归档 `docs/阶段五汇报.md`。
->   这三件做完，阶段五状态才从「待审查」改成「已通过」。
->   任务书：`docs/ARGX-05-开源发布.md`
-> - **阶段六（文档专业化与 AI-Skill）** 紧接其后，任务书：`docs/ARGX-06-文档与AI-Skill.md`
->   做七件事：对外文档专业化、控制台文本**去 AI 味（定点小改）**、
->   **新建 `guide/` 作为对外文档唯一来源**、**新建第三个仓库 `argx-skill`**、全站全仓入口、
->   **首页改版**（新定位句「把你的房间变成密室」+ 开场四拍 + 仓库区）、
->   **三仓 README 改双语 + 顶部徽章区**。
->   语域分三档：玩家向（适度可爱）/ 创作者向（中文技术文档）/ 开发者向（英文 README）——
->   任务书 §3.8 有完整定义，**动笔前必读**。
+> - **阶段五（开源发布与仓库拆分）已通过**。三个收尾项（浏览器类检查进 CI、
+>   对齐 `demo` 的「灯亮 / 灯灭」、归档 `docs/阶段五汇报.md`）已完成，
+>   `test.yml` 新增的 `e2e` job 在 ubuntu runner 上跑通。
+> - **阶段六（文档专业化与 AI-Skill）已做完全部七件**，任务书：`docs/ARGX-06-文档与AI-Skill.md`：
+>   ①对外文档专业化 ②控制台文本**去 AI 味（定点小改）** ③**新建 `guide/` 作为对外文档
+>   唯一来源** ④**新建第三个仓库 `argx-skill`** ⑤全站全仓入口（`#docs:<slug>` 深链）
+>   ⑥**首页改版**（新定位句「把你的房间变成密室」+ 开场四拍 + 价值三卡 + 仓库区）
+>   ⑦**三仓 README 改双语 + 顶部徽章区**。
+>   成果与全部证据见 `docs/PROGRESS.md` 的「阶段六」几节。
 >
 > 阶段四（界面重做）已完成并验收通过。
 >
@@ -102,8 +100,9 @@ argx/
 ├── guide/                 # ★ 对外文档唯一来源（阶段六新建；md 生成 console 的文档页）
 ├── design/                # ★ 界面设计真源（原型 + 设计文档）
 │   ├── README.md          #   入口：谁权威、怎么用
+│   ├── logo.svg           #   三个仓库 README 顶部共用（另两处是拷贝）
 │   └── prototype/         #   index.html（首页）/ console.html（控制台）
-├── landing/               # 官网首页（阶段四新建）
+├── landing/               # 官网首页（阶段四新建，阶段六改版）
 ├── protocol/              # 协议规范（唯一权威来源）
 ├── firmware/              # 设备端：可直刷的 Arduino 代码
 ├── device/                # 虚拟设备（调试主力）
@@ -111,9 +110,10 @@ argx/
 ├── console/               # 控制台网站（可构建，产物纯静态）
 ├── sdk/                   # 网页 SDK（零依赖，可内联）
 ├── demo/                  # 极简 ARG 示例
-├── tools/                 # 发布工具：Pages 站点组装与校验（site.mjs）
-├── .github/workflows/     # test.yml（四条闸门 + 构建）、pages.yml（部署）
-├── README.md              # 主仓门面（基础设施风）
+├── tools/                 # 发布工具：Pages 站点组装（site.mjs）+ 文档生成（build-guide.mjs）
+├── .github/workflows/     # test.yml（四条闸门 + 构建 + 文档比对 + 浏览器检查）、pages.yml（部署）
+├── README.md              # 主仓门面（英文，基础设施风）
+├── README.zh-CN.md        # 主仓门面 · 中文版
 ├── LICENSE                # MIT
 └── 另有两个仓库：           # argx-esp32（阶段五建）、argx-skill（阶段六建）
 ```
@@ -184,12 +184,15 @@ argx/
 
 进度总览：@docs/PROGRESS.md
 
-**当前要做的，分两段，按这个顺序：**
+**阶段五已通过，阶段六已做完全部七件，等审查。**
 
-1. **先把阶段五的三个收尾项做完**（任务书：`@docs/ARGX-05-开源发布.md`，第 2 节已列出）：
-   浏览器类检查进 CI、对齐 `demo` 的「灯亮 / 灯灭」、归档 `docs/阶段五汇报.md`。
-2. **再做阶段六**：`@docs/ARGX-06-文档与AI-Skill.md`
-   —— 文档专业化 + 去 AI 味 + `guide/` 单一来源 + 新建第三仓库 `argx-skill` + 全站入口。
+- 任务书：`@docs/ARGX-06-文档与AI-Skill.md`
+- 成果与全部证据：`docs/PROGRESS.md` 的「阶段六验收自检」「阶段六决策记录」
+- 三个仓库都已推送，`argx` 的 `test` 与 `pages` 两个 workflow 全绿，
+  线上 <https://zhengtfb.github.io/argx/> 校验 0 个 404、0 个未捕获异常
+
+> **下一阶段开工前**：先读 `@docs/PROGRESS.md` 确认阶段六已通过审查，
+> 且工作区是干净的。**工作区不干净就不许往下走。**
 
 > **开工前，除本文件外还要先读 `@docs/PROGRESS.md`**，
 > 确认上一段已通过、没有遗留未做的事，且工作区是干净的。**工作区不干净就不许往下走。**
@@ -221,7 +224,11 @@ npm install
 npm run dev                       # http://localhost:5173
 npm run build                     # 类型检查 + 打包 → dist/（纯静态，含 demo/ sdk/ landing/ design/）
 npm run dev                       # 另开一个终端，冒烟要先有 dev server
-node scripts/smoke.mjs            # 控制台端到端（90 项，零依赖，无头 Edge + DevTools 协议）
+node scripts/smoke.mjs            # 控制台端到端（97 项，零依赖，无头 Edge + DevTools 协议）
+
+# 文档：正文只在 guide/ 下写一份，控制台的文档页是生成物（在仓库根跑）
+node tools/build-guide.mjs            # 从 guide/*.md 生成 console/src/data/docs.generated.ts
+node tools/build-guide.mjs --check    # 不写文件，只比对；不一致就非零退出（CI 里跑这条）
 
 # 发布：GitHub Pages 站点的组装与校验（在仓库根跑）
 node tools/site.mjs                     # 只组装 → site/
@@ -243,11 +250,19 @@ $CLI compile -b esp32:esp32:esp32   firmware/argx_mvp    # 老款 WROOM-32E
 首页（`landing/`）**零构建**：双击 `landing/index.html` 就能看，
 或经控制台的 dev server 访问 `http://localhost:5173/landing/`。
 
-控制台的分区可以直接用 hash 打开。**只有一套界面，hash 空间就是这七个：**
+控制台的分区可以直接用 hash 打开。**只有一套界面，hash 空间就是这七个，外加两个子页参数：**
 
 ```
-#onboarding  #library  #device  #simulator  #docs  #debug  #play:<workId>
+#onboarding  #library  #device  #simulator  #docs  #debug
+#play:<workId>     自家作品的站内播放页（不算第七个栏目，ARG 库那一格保持高亮）
+#docs:<slug>       文档页里的某一页（不算第七个栏目，文档那一格保持高亮）
 ```
+
+> `#docs`（无子页）仍然可用，落到文档的默认页（现在是 `ai-skill`）。
+> 认不出来的 slug 也回落到默认页，不报错也不改写地址栏。
+> 文档页内翻页会**同步写地址栏**，所以任何一页都能直接复制给别人。
+> 这一对的关系由 `App.tsx` 里 `page` 的 `key`（含 `route.doc`）保证：
+> hash 变了就重挂，浏览器前进/后退因此跟着对。
 
 > ⚠️ 旧的两套 hash 空间（小白版的 `#home` `#help`、专业版的 `#overview` `#works`
 > `#timeline` `#creator`）**已作废**。它们会**被重定向到最接近的新栏目并改写地址栏**，
@@ -275,15 +290,17 @@ esp32 core 3.3.11 已装好，不需要再 `core install`。
 | `landing/` | 官网首页。**零构建**（原生 HTML/CSS/JS），独立于控制台，不做数据、不做路由 | — |
 | `sdk/` | 网页 SDK，零依赖纯原生 JS + `AGENTS.md`（给 AI 看的集成规范） | 全部第三方作品 |
 | `demo/` | 示例作品。`script.json` 是剧本数据，控制台的 ARG 库也读同一份 | 控制台的播放器 |
-| `tools/` | 发布工具。`site.mjs` 组装 / 预览 / 校验 GitHub Pages 站点 | 两个 workflow |
-| `.github/workflows/` | `test.yml`（四条闸门 + 构建 + 站点组装）、`pages.yml`（部署） | — |
+| `guide/` | **对外文档的唯一来源**。10 页 md（玩家/创作者向、中文），控制台的文档页由 `tools/build-guide.mjs` 从它生成 | 控制台文档页 |
+| `tools/` | 发布工具。`site.mjs` 组装 / 预览 / 校验 GitHub Pages 站点；`build-guide.mjs` 生成文档数据 | 两个 workflow |
+| `.github/workflows/` | `test.yml`（四条闸门 + 构建 + 文档生成物比对 + 浏览器类检查）、`pages.yml`（部署） | — |
 
-**这个项目现在住在两个仓库里**（阶段五拆的，不用 submodule，相互依赖的文件两边各放一份）：
+**这个项目现在住在三个仓库里**（不用 submodule，相互依赖的文件各放一份）：
 
 | 仓库 | 装什么 |
 |---|---|
-| [`argx`](https://github.com/ZhengTFB/argx)（主仓，就是本目录） | 全部：协议、虚拟设备、SDK、控制台、引导页、设计真源、固件 |
+| [`argx`](https://github.com/ZhengTFB/argx)（主仓，就是本目录） | 全部：协议、虚拟设备、SDK、控制台、引导页、设计真源、固件、`guide/` |
 | [`argx-esp32`](https://github.com/ZhengTFB/argx-esp32) | ESP32 硬件侧：`firmware/`、`firmware/WIRING.md`、`protocol/PROTOCOL.md`（**副本**） |
+| [`argx-skill`](https://github.com/ZhengTFB/argx-skill) | 给 ARG 网页作者的 AI 助手用的接入技能包。**自包含**：`references/protocol.md` 与 `assets/argx.js`（逐字节副本）、事件词表、参数、错误码、常量、埋点规范、三段提示词、`tools/check-skill.mjs` |
 
 ⚠️ **仲裁逻辑在固件与虚拟设备里各有一份实现，拆仓后分居两个仓库。**
 两处代码都加了互指注释——**改一处必须同步另一处**，否则两端行为会悄悄漂移，
@@ -296,6 +313,8 @@ esp32 core 3.3.11 已装好，不需要再 `core install`。
   也是唯一调 `ARGX.state()` 的地方（原因见文件头注释，两条都是踩出来的）
 - `ui/`（可复用组件）、`sections/`（六个栏目）、`data/`（文档与剧本数据）
 - `works.ts`（作品数据）、`routes.ts`（hash 空间与旧 hash 映射）
+- `data/docs.types.ts` 手写、`data/docs.generated.ts` **生成物**（勿手改）、
+  `data/docs.ts` **已删除**。正文只在 `guide/` 下写一份
 
 > ⚠️ 旧的 `panels/`（专业版面板）、`simulator/`（旧模拟器 UI）、
 > `views/pro/`（专业版外壳）、`views/basic/`（小白版）、`core/connection.ts`、
@@ -409,6 +428,25 @@ esp32 core 3.3.11 已装好，不需要再 `core install`。
     `npm run build` 零类型错误只证明它能编译。**改了 `console/` 就顺手跑一遍
     `node tools/site.mjs --check`**（它跑的是 dist）。
 
+28. **XML 注释里不能出现连续两个减号。** `design/logo.svg` 的注释里写了
+    `--accent-500`，SVG 直接解析失败——浏览器里就是一张碎图，而**.md 里看不出任何异常**。
+    现在注释里一律不写 CSS 变量名。凡是 SVG，改完用
+    `python -c "import xml.dom.minidom; xml.dom.minidom.parse(...)"` 过一遍。
+
+29. **生成物会和它的来源脱节，而且只有一条断言看得见。** 改了 `guide/*.md`
+    忘了跑生成器 → `console/package.json` 的 `predev`/`prebuild` 会在 dev 与 build 前
+    补上，但**提交时不会**。所以 CI 里有 `node tools/build-guide.mjs --check`：
+    它可以被违反一次（第一次 push 就发生了），下一次立刻红。**改完 md 顺手跑一次生成器。**
+
+30. **`design/` 里的记述是「下一轮 AI 的输入」，改了实现不同步它就会被改回去。**
+    阶段六把开场动画从三词改成四拍，`design/` 里有 **9 个文件**记着「三词」或旧定位句。
+    改首页文案/拍数这类**被设计文档记述过的**东西时，先
+    `grep -rn "旧文案" design/` 把记述点找全，一处不改就是一次回滚。
+
+31. **本机的 `core.autocrlf=true`**（系统级）。任何「逐字节一致」的断言都要靠
+    `.gitattributes` 钉住行尾，否则 Windows 上重新 checkout 出来就是 CRLF，
+    本地假红而 CI 绿。`argx-skill` 的 `assets/argx.js` / `argx.d.ts` 就是这么钉的（`-text`）。
+
 ### 决策记录
 
 （详细理由见 `docs/PROGRESS.md` 的决策记录，这里只留长期有效的结论）
@@ -478,3 +516,27 @@ esp32 core 3.3.11 已装好，不需要再 `core install`。
 - 仲裁逻辑在固件与虚拟设备里各有一份实现，拆仓后必须加**互指注释**防漂移
 - 两份 README：主仓走基础设施风（`vite` 那类），硬件仓走硬件项目风（`qmk` 那类）
 - 完全开源，默认 MIT
+
+阶段六（文档专业化与 AI-Skill）：
+
+- **对外文档的唯一来源是 `guide/`**（根目录，不放 `docs/`——`docs/` 是内部施工文档）。
+  控制台的文档页是**生成物**：`docs.generated.ts` 提交进仓库（clone 下来不跑脚本也能起 dev），
+  用 CI 的 `--check` 兜住「与 md 脱节」这个代价
+- 生成器是**零依赖受限解析器**（不引 marked / remark / markdown-it）。
+  **不支持的语法一律报错退出，不静默跳过**——静默跳过会让文档悄悄丢内容
+- **三档语域**：玩家向（适度可爱，不靠语气词）/ 创作者向（中文技术文档）/ 开发者向（英文）。
+  首页与模拟器、设备、ARG 库三页是玩家向；`guide/` 与 `sdk/` 两份是创作者向；三个仓库的
+  README 与 `protocol/` 是开发者向
+- **去 AI 味是定点小改，不是重写**：删自证、否定式抬高、防御性后缀、元评论、口语提示词，
+  破折号每页最多留一处。**技术信息一个都不许丢**（用数字与标识符集合比对来证明）
+- 建**第三个仓库 `argx-skill`**：给「已经在写 ARG 网页」的创作者的 AI 用的技能包，
+  **自包含**（协议、SDK API、词表、参数、错误码、常量都在里面，AI 不必回主仓查）
+- skill 里的 `assets/argx.js` / `argx.d.ts` 是主仓的**逐字节拷贝**，由 `check-skill.mjs`
+  用 sha256 断言。与「头部加拷贝注释」冲突时**以逐字节一致为准**（注释放在 README 与 SKILL.md 里）
+- 入口统一走文档页深链 **`#docs:<slug>`**，AI 接入页 `ai-skill` 同时是文档页的默认页
+- 首页：定位句改成**「把你的房间变成密室」**，开场动画 3 词 → **4 拍**
+  （更沉浸 → 更方便 → 更易扩展 → **ARGX 字标**），能力三卡改成价值三卡，
+  新增一屏「三个仓库」
+- 三仓 README 全部**双语**（默认英文 + `README.zh-CN.md`），顶部居中块（logo + 一句话 +
+  徽章行 + 语言切换）。**徽章只放真实信息**：`on-device: not yet verified` 是如实声明，不许写成绿灯
+- 两版 README **内容等价、句子各写**，不逐句直译
