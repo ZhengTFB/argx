@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { DOC_GROUPS, DOC_PAGES } from '../data/docs.generated';
 import type { DocBlock, DocPage } from '../data/docs.types';
+import { docHash } from '../routes';
 import { Callout, CodeBlock } from '../ui/primitives';
 import { PageHead } from '../ui/Chrome';
 import { IcoArrowLeft, IcoArrowRight, IcoChevronRight, IcoSearch } from '../ui/icons';
@@ -15,8 +16,10 @@ import { IcoArrowLeft, IcoArrowRight, IcoChevronRight, IcoSearch } from '../ui/i
  * 搜索是纯客户端的（在已经加载的正文里找），所以它是真的能用，不是摆设。
  */
 
-export function Docs() {
-  const [slug, setSlug] = useState(DOC_PAGES[0].slug);
+export function Docs({ initialSlug }: { initialSlug?: string }) {
+  const [slug, setSlug] = useState(() =>
+    initialSlug && DOC_PAGES.some((p) => p.slug === initialSlug) ? initialSlug : DOC_PAGES[0].slug
+  );
   const [q, setQ] = useState('');
   const searchRef = useRef<HTMLInputElement>(null);
 
@@ -48,8 +51,14 @@ export function Docs() {
 
   const heads = useMemo(() => headingsOf(page), [page]);
 
+  /**
+   * 翻页。**同时写地址栏** —— 地址栏是路由的真相，翻到哪一页就应该是哪一个 hash，
+   * 这样任何一页都能直接复制给别人。App 监听 hashchange 之后按新的 slug 重挂本组件，
+   * 所以这里只需要 setSlug 跟上，不必再自己处理"从外面改了 hash"的情况。
+   */
   const go = (next: string) => {
     setSlug(next);
+    window.location.hash = docHash(next);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 

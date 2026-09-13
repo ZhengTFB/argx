@@ -104,6 +104,12 @@ function parseBody(file, lines, offset) {
     if (/^#{4,} /.test(line)) die(file, at(i), '只支持 ## 与 ###，没有再深的标题');
     if (/^\d+[.)] /.test(line)) die(file, at(i), '不支持有序列表 —— DocBlock 里没有 ol。用 - 并在文字里写数字');
 
+    // 行内链接与图片不在子集里：DocBlock 的 Inline 只认 **粗体** 与 `代码`，
+    // 写成 [文字](网址) 会被原样当文本渲染出来。报错，不要静默产出一段看不懂的东西。
+    if (/\]\([^)]*\)/.test(line) || /!\[[^\]]*\]/.test(line)) {
+      die(file, at(i), '不支持行内链接与图片 —— 直接写网址（Inline 只认 **粗体** 与 `代码`）');
+    }
+
     if (/^## /.test(line)) { out.push({ t: 'h2', text: line.slice(3).trim() }); i++; continue; }
     if (/^### /.test(line)) { out.push({ t: 'h3', text: line.slice(4).trim() }); i++; continue; }
 

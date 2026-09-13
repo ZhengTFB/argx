@@ -7,6 +7,7 @@
 | 状态 | 权威来源。固件与网页端实现均从本文档派生 |
 | 改协议的顺序 | 先改本文档 → 再改 `firmware/` 与 `device/virtual_device.js` |
 | ESP32 侧参考实现 | [**`argx-esp32`**](https://github.com/ZhengTFB/argx-esp32) 仓库（本仓库的 `firmware/` 是它的拷贝） |
+| AI 接入 | [**`argx-skill`**](https://github.com/ZhengTFB/argx-skill) 仓库（给 ARG 网页作者的 AI 助手用的接入技能包，含本文档的副本） |
 
 > 「文档修订 v2」与「线上版本号 `v:1`」是两件事：前者是本文档自身的修订次数，
 > 后者是不兼容升级时才递增的线上字段。日常追加能力**不动** `v`。

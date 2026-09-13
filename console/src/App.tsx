@@ -83,12 +83,14 @@ export default function App() {
       <div className="main">
         <TopBar active={active} onGo={go} />
         <main className="content">
-          <div className="page" key={`${active}:${route.play ?? ''}`}>
+          {/* key 里带上子页参数：hash 变了就重挂，文档页因此能靠 initialSlug 跟住地址栏，
+              浏览器前进/后退也就跟着对了 */}
+          <div className="page" key={`${active}:${route.play ?? ''}:${route.doc ?? ''}`}>
             {active === 'onboarding' ? <Onboarding onGo={go} /> : null}
             {active === 'library' ? (route.play ? <Play workId={route.play} onGo={go} /> : <Library />) : null}
             {active === 'device' ? <Device /> : null}
             {active === 'simulator' ? <Simulator /> : null}
-            {active === 'docs' ? <Docs /> : null}
+            {active === 'docs' ? <Docs initialSlug={route.doc} /> : null}
             {active === 'debug' ? <Debug /> : null}
           </div>
         </main>

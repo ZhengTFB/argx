@@ -2,13 +2,16 @@
 
 让网页作品操控现实物件：网页翻到某一段，玩家房间里的灯就暗下去。
 
-给写 ARG 的人用的。**不需要懂硬件，不需要装任何东西，不需要构建工具。**
+给写 ARG 的人用，不涉及硬件、额外依赖与构建工具。
 
 - 零依赖、纯原生 JS，`<script src="argx.js">` 直接可用
 - 整个文件几百行，可以整段复制进你的单文件 HTML 项目
-- 没有装置、连接失败、用 `file://` 打开——所有调用都**静默成功**，不报错、不弹窗、不挡剧情
+- 没有装置、连接失败、用 `file://` 打开时，所有调用都**静默成功**：不报错、不弹窗、不挡剧情
 
-> 你要是正让 AI 帮你写作品，把 `AGENTS.md` 一起丢给它。那份是写给 AI 看的，效果比这份好。
+> 你要是正让 AI 帮你写作品，把 `AGENTS.md` 一起交给它。那份是写给 AI 看的，效果比这份好。
+>
+> 要给**整个作品**做一次接入（挑埋点、选模式、自检、交付），用
+> [`argx-skill`](https://github.com/ZhengTFB/argx-skill)：自包含的技能包，含五步流程与十项检验清单。
 
 ---
 
@@ -25,7 +28,7 @@
 </script>
 ```
 
-就这样。没接装置也能这么写——`fire` 会把该发的东西打印到浏览器 console 里，
+没接装置也能这么写：`fire` 会把该发的东西打印到浏览器 console 里，
 你能看见埋点是不是在对的地方、对的时机触发。
 
 **想在真装置上跑**，把连接放到一个按钮上：
@@ -113,9 +116,9 @@ window.ARGX_HOST_TRANSPORT = myTransport;   // 实现 connect/send/onMessage/onC
 // 作品里什么都不用改，照常 ARGX.init()
 ```
 
-## 三个坑
+## 三个环境限制
 
-**1. 用 `file://` 双击打开 = 串口用不了。**
+**1. 用 `file://` 双击打开：串口用不了。**
 浏览器在 `file://` 下直接禁掉串口。这不是 bug，检测到了会给你一句能照做的话：
 
 ```js
@@ -138,7 +141,7 @@ python -m http.server 8000
 
 ## 硬件不是判定源
 
-**别把解谜结果押在装置上。** 没接装置的玩家必须能完整通关，装置只是"演得更好"。
+**剧情判定不要交给装置。** 没接装置的玩家必须能完整通关，装置只负责把效果演出来。
 
 ```js
 // 对：不管有没有装置，剧情都往下走
@@ -148,16 +151,44 @@ ARGX.fire('reveal');
 
 错的做法是等装置的回应再决定剧情；装置没接，玩家就卡在那里了。
 
-## 其它
+## 完整 API
 
-```js
-ARGX.status()   // 'disconnected' | 'connecting' | 'ready' | 'active' | 'stale' | 'lost' | 'mock'
-ARGX.caps()     // 装置声明了自己有哪些能力，没握手时是 null
-ARGX.device()   // 装置的名字，如 ARGX-0001
-ARGX.events()   // 全部可用事件
-ARGX.on('ready' | 'ack' | 'state' | 'input' | 'err' | 'status' | 'lost' | 'fire' | 'frame', fn)
-ARGX.close()    // 断开
-```
+| 方法 | 参数 | 返回 | 说明 |
+|---|---|---|---|
+| `init(opts?)` | `opts.transport`：`'serial'` / `'mock'` / 宿主通道对象，缺省自动选<br>`opts.quiet`：静默<br>`opts.keep`：只改配置、不重连 | `ARGX` | 建立会话。重复调用不会连出第二条链路；初始化失败也静默 |
+| `connect()` | — | `Promise<boolean>` | 真正打开串口。**必须放在用户点击的回调里** |
+| `close()` | — | `Promise` | 断开 |
+| `fire(name)` | 事件名，取自词表 | `boolean` | 触发一个事件。按装置能力过滤后再发；多条 cue 合并成一个 `batch` |
+| `cue(id, p?)` | 能力 id + 参数对象 | `boolean` | 直接点名一路能力，精确控制参数时用 |
+| `batch(cues)` | `[{ id, p }]` | `boolean` | 一帧同时触发多路，最多 8 条 |
+| `reset()` | — | `undefined` | 全部熄灭、回到待机 |
+| `defineEvent(name, cues, meta?)` | — | `boolean` | 定义一个自己的事件 |
+| `state(opts?)` | `opts.timeout` 毫秒，缺省 900 | `Promise<{dev, uptime, out, in} \| null>` | 问装置此刻的输出。没人应答给 `null`，**永远不 reject** |
+| `status()` | — | `'disconnected' \| 'connecting' \| 'ready' \| 'active' \| 'stale' \| 'lost' \| 'mock'` | 会话状态 |
+| `mode()` | — | `'serial' \| 'mock' \| 'host'` | 传输种类 |
+| `caps()` | — | `{ out: string[], in: string[] } \| null` | 装置声明了哪些能力，未握手时是 `null` |
+| `device()` | — | `string \| null` | 装置的名字，形如 `ARGX-0001` |
+| `events()` | — | 对象 | 全部可用事件（内置 + 自定义） |
+| `hint()` | — | `string` | 环境提示。空串表示没问题，非空时要显示在页面上 |
+| `on(type, fn)` | 见下表 | `ARGX` | 注册处理器 |
+| `off(type, fn)` | **必须传精确的 `fn`** | `ARGX` | 退订。不传处理器会清空该类型的整张处理器表 |
+| `version` | — | `string` | 属性，不是方法 |
+
+可监听的类型与回调参数：
+
+| `type` | 回调参数 |
+|---|---|
+| `ready` | `(caps, dev)` |
+| `ack` | `({ seq, r, res })` |
+| `state` | `(frame)` |
+| `input` | `(id, frame)` |
+| `err` | `(frame)` |
+| `status` / `lost` | — |
+| `fire` | `(name, cues)` |
+| `frame` | `(msg, dir)` |
+| `pong` | `(ms)` |
+
+`on('ack', ...)` 只用来记日志或改表现，**不要用它推进剧情**——没买装置的玩家收不到 ack。
 
 完整协议在 `protocol/PROTOCOL.md`。要接自定义硬件（自己做的装置、新能力），
-看 `firmware/` 和那份协议，加一个能力注册就行，SDK 和协议都不用改。
+看 `firmware/` 和那份协议，加一个能力注册就行，SDK 与协议都不用改。
