@@ -1,0 +1,903 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ARGX — 把网页变成一间会呼吸的房间</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* ============================================================
+   ARGX  首页  —  深色主题  v2
+   Token 来源：03-design-tokens.md / 04-配色方案.md
+   ============================================================ */
+:root{
+  --bg-app:#0A0B0D;
+  --bg-surface:#141518;
+  --bg-surface-hover:#1A1C20;
+  --bg-elevated:#1C1E23;
+  --bg-sunken:#0F1013;
+  --bg-muted:#26282E;
+  --border-subtle:#1E2025;
+  --border-default:#2A2D33;
+  --border-strong:#3A3E46;
+  --border-highlight:rgba(255,255,255,.085);
+  --text-primary:#F2F3F5;
+  --text-secondary:#A8ADB8;
+  --text-tertiary:#71767F;
+  --text-disabled:#4C5058;
+
+  --accent-50:#EFF4FE;
+  --accent-100:#DCE7FD;
+  --accent-300:#8AB0F5;
+  --accent-400:#5B8DEF;
+  --accent-500:#3B7BF0;
+  --accent-600:#2563EB;
+
+  --success:#2ECC71;
+  --warning:#F5A524;
+  --danger:#F04C4C;
+
+  --ch-light:#F0A020;
+  --ch-sound:#3B7BF0;
+  --ch-motion:#8B5CF6;
+  --ch-relay:#0E9F6E;
+
+  --space-1:4px; --space-2:8px; --space-3:12px; --space-4:16px;
+  --space-5:20px; --space-6:24px; --space-8:32px; --space-10:40px;
+  --space-12:48px; --space-16:64px; --space-24:96px; --space-32:128px;
+
+  --radius-xs:4px; --radius-sm:6px; --radius-md:10px;
+  --radius-lg:14px; --radius-xl:18px; --radius-2xl:24px; --radius-full:9999px;
+
+  --shadow-xs:0 1px 2px rgba(0,0,0,.30);
+  --shadow-sm:0 2px 6px rgba(0,0,0,.36), 0 1px 2px rgba(0,0,0,.24);
+  --shadow-md:0 6px 16px rgba(0,0,0,.44), 0 2px 6px rgba(0,0,0,.28);
+  --shadow-lg:0 12px 32px rgba(0,0,0,.52), 0 4px 10px rgba(0,0,0,.30);
+  --shadow-xl:0 24px 64px rgba(0,0,0,.60), 0 8px 20px rgba(0,0,0,.40);
+  --shadow-focus:0 0 0 3px rgba(91,141,239,.32);
+  --inner-top:inset 0 1px 0 var(--border-highlight);
+
+  --dur-micro:90ms; --dur-fast:140ms; --dur-normal:260ms;
+  --dur-slow:360ms; --dur-page:480ms; --dur-reveal:700ms;
+  --ease-out:cubic-bezier(.32,.72,0,1);
+  --ease-reveal:cubic-bezier(.22,1,.36,1);
+
+  --font-sans:"Inter",-apple-system,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+  --font-mono:"JetBrains Mono","SF Mono","Cascadia Code",ui-monospace,Consolas,monospace;
+}
+
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{
+  background:var(--bg-app);color:var(--text-primary);
+  font-family:var(--font-sans);font-size:16px;line-height:1.6;
+  -webkit-font-smoothing:antialiased;overflow-x:hidden;
+}
+a{text-decoration:none;color:inherit}
+button{font-family:inherit;background:none;border:none;cursor:pointer;color:inherit}
+
+/* ============================================================
+   1. 背景层：单点冷调光锥 + 极细网格 + 噪点
+   参考 DeepSeek：只用一处极克制的冷白/中性光，不做多彩渐变
+   ============================================================ */
+.bg{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden;
+  background:#0A0B0D;
+}
+/* 唯一一处光：页面顶部中央一束冷调柔光，像顶灯打在墙上，不是彩色光带 */
+.bg-light{position:absolute;left:50%;top:-38%;width:150%;height:108%;
+  transform:translateX(-50%);
+  background:
+    radial-gradient(58% 56% at 50% 50%, rgba(228,232,238,.115), transparent 72%),
+    radial-gradient(34% 34% at 50% 50%, rgba(238,241,245,.075), transparent 78%);
+}
+/* 光锥底部一条极淡的水平切线，给光一个落点 */
+.bg-light::after{
+  content:"";position:absolute;left:50%;bottom:6%;width:min(62vw,760px);height:1px;
+  transform:translateX(-50%);
+  background:linear-gradient(90deg,transparent,rgba(255,255,255,.075) 30%,rgba(255,255,255,.11) 50%,rgba(255,255,255,.075) 70%,transparent);
+}
+/* 细网格 */
+.bg-grid{position:absolute;inset:0;
+  background-image:
+    linear-gradient(to right, rgba(255,255,255,.024) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255,255,255,.024) 1px, transparent 1px);
+  background-size:88px 88px;
+  mask-image:radial-gradient(ellipse 82% 58% at 50% 28%, #000 6%, transparent 76%);
+  -webkit-mask-image:radial-gradient(ellipse 82% 58% at 50% 28%, #000 6%, transparent 76%);
+}
+/* 噪点：唯一的「材质」，把大平面从死板的纯色里救出来 */
+.bg-noise{position:absolute;inset:0;opacity:.045;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.78' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='220' height='220' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+/* 四角收敛：压住中心，注意力留在内容上 */
+.bg-vignette{position:absolute;inset:0;
+  background:
+    radial-gradient(128% 104% at 50% 42%, transparent 42%, rgba(0,0,0,.52) 100%),
+    linear-gradient(180deg, rgba(0,0,0,.46) 0%, transparent 20%),
+    linear-gradient(0deg, rgba(0,0,0,.50) 0%, transparent 24%);
+}
+
+/* ============================================================
+   2. 开场动画层（首访播放 · 可跳过）
+   ============================================================ */
+#intro{
+  position:fixed;inset:0;z-index:900;
+  background:var(--bg-app);
+  display:grid;place-items:center;
+  opacity:1;transition:opacity 700ms var(--ease-reveal),visibility 700ms;
+  overflow:hidden;
+  cursor:pointer;
+}
+#intro.done{opacity:0;visibility:hidden;pointer-events:none}
+/* 开场期间：除三词与跳过按钮外，层内所有装饰一律不显示 */
+#intro:not(.lit) .intro-grid,
+#intro:not(.lit)::before,
+#intro:not(.lit)::after{opacity:0 !important;animation:none !important}
+#intro.lit .intro-grid,
+#intro.lit::before,
+#intro.lit::after{animation-play-state:running}
+
+/* 开场期间：页面主体、背景层也一并从视觉上移除（避免一闪而过） */
+body.intro-open .page-shell{visibility:hidden}
+body.intro-open .bg{visibility:hidden}
+body.intro-open{overflow:hidden}
+
+/* 中心一处极淡的冷调光，不做彩色光晕 */
+#intro::before{content:"";position:absolute;inset:0;
+  background:radial-gradient(640px 400px at 50% 50%, rgba(232,236,242,.075), transparent 72%);
+  opacity:0;animation:introGlow 3200ms var(--ease-out) 200ms forwards;
+}
+@keyframes introGlow{to{opacity:1}}
+
+/* 极淡的水平基线：把三个词压在一个空间里而不是飘在虚空 */
+#intro::after{
+  content:"";position:absolute;left:50%;top:50%;width:min(64vw,720px);height:1px;
+  transform:translate(-50%,-50%);
+  background:linear-gradient(90deg,transparent,rgba(255,255,255,.07) 22%,rgba(255,255,255,.12) 50%,rgba(255,255,255,.07) 78%,transparent);
+  opacity:0;animation:introHairline 2600ms var(--ease-out) 500ms forwards;
+}
+@keyframes introHairline{to{opacity:1}}
+
+/* 顶部一层极细的网格，暗示「页面 / 网页」这一载体 */
+.intro-grid{
+  position:absolute;inset:0;pointer-events:none;
+  background-image:linear-gradient(rgba(255,255,255,.024) 1px,transparent 1px),
+                   linear-gradient(90deg,rgba(255,255,255,.024) 1px,transparent 1px);
+  background-size:88px 88px;
+  -webkit-mask-image:radial-gradient(64% 56% at 50% 50%,#000 10%,transparent 72%);
+          mask-image:radial-gradient(64% 56% at 50% 50%,#000 10%,transparent 72%);
+  opacity:0;animation:introHairline 2000ms var(--ease-out) 300ms forwards;
+}
+
+/* 三个词共用同一块画布，逐字替换；永远在页面正中央 */
+.intro-stage{
+  position:relative;
+  display:grid;place-items:center;
+  width:100%;height:1.06em;
+  font-size:clamp(54px,9.2vw,108px);
+  line-height:1.06;
+}
+.intro-word{
+  position:absolute;left:50%;top:50%;
+  display:flex;align-items:center;justify-content:center;
+  line-height:1.06;
+  font-size:inherit;font-weight:800;
+  letter-spacing:-.045em;
+  white-space:nowrap;
+  color:var(--text-primary);
+  opacity:0;transform:translate(-50%,-50%) translateY(14px) scale(.985);
+  transition:opacity 780ms var(--ease-reveal),
+             transform 780ms var(--ease-reveal),
+             color 780ms var(--ease-out);
+  will-change:opacity,transform;
+}
+.intro-word.on{opacity:1;transform:translate(-50%,-50%) translateY(0) scale(1)}
+/* 已过的词原地淡出、微微收缩，不位移、不堆叠 */
+.intro-word.past{opacity:0;transform:translate(-50%,-50%) scale(.972);color:#585D65}
+
+/* 逐字：每个字有自己的延迟，整词不是一块整体推上来 */
+.intro-word .ch{
+  display:inline-block;
+  opacity:0;transform:translateY(.3em);filter:blur(6px);
+  transition:opacity 700ms var(--ease-reveal),transform 700ms var(--ease-reveal),filter 700ms var(--ease-reveal);
+}
+.intro-word.on .ch{opacity:1;transform:translateY(0);filter:blur(0)}
+
+/* 当前词底部扫过的一道光，作为收尾（中性色，不用彩色） */
+.intro-word.on::after{
+  content:"";position:absolute;left:12%;right:12%;bottom:-.06em;height:1.5px;
+  background:linear-gradient(90deg,transparent,rgba(255,255,255,.42),transparent);
+  border-radius:2px;transform:scaleX(0);transform-origin:50% 50%;
+  animation:introUnderline 900ms var(--ease-out) 240ms forwards;
+}
+@keyframes introUnderline{0%{transform:scaleX(0);opacity:0}40%{opacity:1}100%{transform:scaleX(1);opacity:.42}}
+
+/* 跳过按钮：开场期间唯一的其他元素 */
+.intro-skip{
+  position:absolute;bottom:var(--space-12);left:50%;transform:translateX(-50%);
+  display:inline-flex;align-items:center;gap:var(--space-2);
+  font-size:13px;color:var(--text-tertiary);
+  padding:var(--space-2) var(--space-4);border-radius:var(--radius-full);
+  border:1px solid transparent;
+}
+.intro-skip:hover{color:var(--text-primary);border-color:var(--border-strong);background:rgba(255,255,255,.04)}
+.intro-skip:focus-visible{outline:none;box-shadow:var(--shadow-focus)}
+.intro-skip kbd{
+  font-family:var(--font-mono);font-size:10px;padding:1px 5px;
+  border-radius:var(--radius-xs);background:rgba(255,255,255,.07);
+  border:1px solid var(--border-default);color:var(--text-tertiary);
+}
+
+/* 首屏内容：由首帧脚本按需展开，避免闪一下再收起 */
+.page-shell{visibility:hidden}
+body.ready .page-shell{visibility:visible}
+
+/* ============================================================
+   3. 顶部导航
+   ============================================================ */
+.nav{
+  position:fixed;top:0;left:0;right:0;z-index:100;
+  display:flex;align-items:center;justify-content:space-between;
+  padding:var(--space-4) var(--space-8);
+  border-bottom:1px solid transparent;
+  transition:background-color var(--dur-normal) var(--ease-out),
+             backdrop-filter var(--dur-normal) var(--ease-out),
+             border-color var(--dur-normal) var(--ease-out);
+}
+.nav.scrolled{
+  background:rgba(10,11,13,.70);
+  backdrop-filter:blur(22px) saturate(160%);-webkit-backdrop-filter:blur(22px) saturate(160%);
+  border-bottom-color:var(--border-subtle);
+}
+.nav-brand{display:flex;align-items:center;gap:var(--space-3)}
+.brand-mark{
+  width:30px;height:30px;border-radius:9px;flex:none;
+  border:1.5px solid var(--text-primary);
+  display:grid;place-items:center;font-size:13px;font-weight:800;
+  transform:rotate(45deg);position:relative;
+  transition:transform var(--dur-normal) var(--ease-out);
+}
+.brand-mark span{transform:rotate(-45deg)}
+.brand-mark:hover{transform:rotate(45deg) scale(1.06)}
+.nav-word{font-weight:700;font-size:17px;letter-spacing:-.01em}
+.nav-chip{
+  font-size:11px;font-weight:500;color:var(--text-tertiary);
+  padding:2px 9px;border-radius:var(--radius-full);
+  border:1px solid var(--border-default);background:rgba(255,255,255,.03);
+}
+.nav-center{display:flex;align-items:center;gap:var(--space-1);position:absolute;left:50%;transform:translateX(-50%)}
+.nav-link{
+  padding:var(--space-2) var(--space-4);border-radius:var(--radius-md);
+  color:var(--text-secondary);font-size:14px;font-weight:500;
+  transition:background-color var(--dur-micro) ease-out,color var(--dur-micro) ease-out;
+}
+.nav-link:hover{background:rgba(255,255,255,.055);color:var(--text-primary)}
+.nav-link:focus-visible{outline:none;box-shadow:var(--shadow-focus)}
+.nav-right{display:flex;align-items:center;gap:var(--space-3)}
+
+/* ============================================================
+   4. 按钮体系（含内高光，提升质感）
+   ============================================================ */
+.btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:var(--space-2);
+  font-size:14px;font-weight:500;line-height:1;white-space:nowrap;
+  border-radius:var(--radius-full);
+  transition:background-color var(--dur-fast) var(--ease-out),
+             transform var(--dur-fast) var(--ease-out),
+             box-shadow var(--dur-fast) var(--ease-out),
+             border-color var(--dur-fast) var(--ease-out),
+             color var(--dur-fast) var(--ease-out);
+}
+.btn:focus-visible{outline:none;box-shadow:var(--shadow-focus)}
+.btn--sm{height:32px;padding:0 var(--space-4);font-size:13px}
+.btn--md{height:38px;padding:0 var(--space-5)}
+.btn--lg{height:46px;padding:0 var(--space-6);font-size:15px;gap:var(--space-3)}
+.btn--primary{
+  background:linear-gradient(180deg,#3B7BF0,#2563EB);
+  color:#fff;box-shadow:var(--shadow-sm),inset 0 1px 0 rgba(255,255,255,.16);
+}
+.btn--primary:hover{background:linear-gradient(180deg,#4A87F3,#2E6BEE);transform:translateY(-1px);
+  box-shadow:var(--shadow-md),inset 0 1px 0 rgba(255,255,255,.20)}
+.btn--primary:active{transform:translateY(0)}
+.btn--ghost{
+  background:rgba(255,255,255,.045);color:var(--text-primary);
+  border:1px solid var(--border-default);box-shadow:var(--inner-top);
+}
+.btn--ghost:hover{background:rgba(255,255,255,.085);border-color:var(--border-strong);transform:translateY(-1px)}
+.btn--ghost:active{transform:translateY(0)}
+.btn--light{
+  background:linear-gradient(180deg,#FFFFFF,#EDEFF3);color:#0A0B0D;
+  box-shadow:var(--shadow-sm),inset 0 -1px 0 rgba(0,0,0,.06);
+}
+.btn--light:hover{background:linear-gradient(180deg,#FFFFFF,#E4E7EC);transform:translateY(-1px);box-shadow:var(--shadow-md)}
+.btn--light:active{transform:translateY(0)}
+.btn .arrow{transition:transform var(--dur-fast) var(--ease-out)}
+.btn:hover .arrow{transform:translateX(3px)}
+
+/* ============================================================
+   5. Hero（标准结构：标签 + 大标题 + 正文 + 按钮组 + 代码卡）
+   ============================================================ */
+.page-shell{position:relative;z-index:1;opacity:1;transition:opacity 600ms var(--ease-out)}
+.hero{
+  min-height:100vh;display:flex;align-items:center;
+  padding:var(--space-32) var(--space-8) var(--space-24);
+  max-width:1280px;margin:0 auto;
+}
+.hero-grid{display:grid;grid-template-columns:1fr 1fr;gap:var(--space-16);align-items:center;width:100%}
+.hero-left{max-width:34rem}
+
+.hero h1{
+  font-size:clamp(40px,4.6vw,62px);font-weight:800;
+  line-height:1.05;letter-spacing:-.035em;
+  margin-bottom:var(--space-6);
+}
+/* 强调不用彩色渐变，改用中性亮色 + 一道发丝下划线（专业、克制） */
+.hero h1 em{
+  font-style:normal;color:#FFFFFF;
+  background-image:linear-gradient(90deg,rgba(255,255,255,.34),rgba(255,255,255,.12));
+  background-repeat:no-repeat;background-size:100% 1.5px;background-position:0 100%;
+  padding-bottom:.06em;
+}
+.hero-body{display:flex;flex-direction:column;gap:var(--space-4);margin-bottom:var(--space-10)}
+.hero-lead{font-size:17px;line-height:1.62;color:var(--text-secondary);max-width:32rem}
+.hero-lead strong{color:var(--text-primary);font-weight:500}
+
+.hero-cta{display:flex;flex-direction:column;gap:var(--space-3);margin-bottom:var(--space-8)}
+.hero-cta-row{display:flex;gap:var(--space-3);flex-wrap:wrap}
+
+/* Hero 规格条：三项真实参数，用发丝线分隔，信息密度撑住下半部 */
+.hero-specs{
+  display:flex;align-items:stretch;gap:var(--space-6);
+  padding-top:var(--space-6);
+  border-top:1px solid var(--border-subtle);
+  max-width:34rem;
+}
+.spec{display:flex;flex-direction:column;gap:3px;min-width:0}
+.spec-k{
+  font-size:24px;font-weight:750;letter-spacing:-.03em;line-height:1.1;
+  color:var(--text-primary);font-variant-numeric:tabular-nums;
+  display:flex;align-items:baseline;gap:1px;
+}
+.spec-k small{font-size:13px;font-weight:600;color:var(--text-tertiary);letter-spacing:0}
+.spec-v{
+  font-size:11.5px;color:var(--text-secondary);font-weight:500;
+  display:flex;flex-direction:column;gap:1px;
+}
+.spec-v small{font-size:10.5px;color:var(--text-tertiary);font-weight:400;font-family:var(--font-mono)}
+.spec-div{width:1px;background:var(--border-subtle);flex:none}
+
+/* 右侧：代码卡（tab 在卡外 + 终端风） */
+.hero-right{display:flex;flex-direction:column;gap:var(--space-3);min-width:0}
+.code-tabs{
+  display:inline-flex;gap:2px;align-self:flex-start;
+  padding:3px;border-radius:var(--radius-md);
+  background:rgba(255,255,255,.045);border:1px solid var(--border-default);
+  box-shadow:var(--inner-top);
+}
+.code-tab{
+  padding:6px var(--space-4);border-radius:7px;
+  font-size:12px;font-weight:500;color:var(--text-tertiary);
+  transition:background-color var(--dur-fast) var(--ease-out),color var(--dur-fast) var(--ease-out);
+}
+.code-tab:hover{color:var(--text-secondary)}
+.code-tab.act{background:var(--bg-elevated);color:var(--text-primary);box-shadow:var(--shadow-xs)}
+.code-tab:focus-visible{outline:none;box-shadow:var(--shadow-focus)}
+
+.terminal{
+  border-radius:var(--radius-lg);overflow:hidden;
+  background:linear-gradient(180deg,#101114,#0C0D0F);
+  border:1px solid var(--border-default);
+  box-shadow:var(--shadow-lg),var(--inner-top);
+  transition:transform var(--dur-slow) var(--ease-out),box-shadow var(--dur-slow) var(--ease-out),border-color var(--dur-slow) var(--ease-out);
+}
+.terminal:hover{border-color:var(--border-strong);box-shadow:var(--shadow-xl),var(--inner-top);transform:translateY(-2px)}
+.terminal-bar{
+  display:flex;align-items:center;gap:var(--space-3);
+  padding:var(--space-3) var(--space-4);
+  border-bottom:1px solid rgba(255,255,255,.055);
+  background:rgba(255,255,255,.014);
+}
+.terminal-bar .dots{display:flex;gap:6px}
+.terminal-bar .dots i{width:10px;height:10px;border-radius:50%;display:block}
+.terminal-bar .dots i:nth-child(1){background:#FF5F57}
+.terminal-bar .dots i:nth-child(2){background:#FEBC2E}
+.terminal-bar .dots i:nth-child(3){background:#28C840}
+.terminal-bar .fname{
+  font-family:var(--font-mono);font-size:11px;color:var(--text-tertiary);margin-left:auto;
+}
+.terminal-body{padding:var(--space-5) var(--space-5);position:relative}
+.term-line{display:flex;align-items:flex-start;gap:var(--space-3);font-family:var(--font-mono);font-size:13px;line-height:1.85}
+.term-line .prompt{color:var(--accent-400);flex:none}
+.term-line .cmd{color:#D8DCE4}
+.term-line .cmt{color:#4A4F58}
+.term-copy{
+  position:absolute;top:var(--space-3);right:var(--space-3);
+  display:inline-flex;align-items:center;gap:5px;
+  padding:4px var(--space-3);border-radius:var(--radius-sm);
+  font-size:11px;color:var(--text-tertiary);
+  background:rgba(255,255,255,.05);border:1px solid var(--border-default);
+  opacity:0;transition:opacity var(--dur-fast) var(--ease-out),color var(--dur-fast) var(--ease-out);
+}
+.terminal:hover .term-copy{opacity:1}
+.term-copy:hover{color:var(--text-primary)}
+.term-copy:focus-visible{opacity:1;outline:none;box-shadow:var(--shadow-focus)}
+
+/* ============================================================
+   6. 通用区块
+   ============================================================ */
+.section{padding:var(--space-24) var(--space-8);position:relative}
+.section-inner{max-width:1280px;margin:0 auto}
+.reveal{opacity:0;transform:translateY(22px);
+  transition:opacity var(--dur-reveal) var(--ease-reveal),transform var(--dur-reveal) var(--ease-reveal)}
+.reveal.on{opacity:1;transform:translateY(0)}
+
+.section-tag{
+  display:inline-flex;align-items:center;
+  height:26px;padding:0 var(--space-3);margin-bottom:var(--space-5);
+  border-radius:var(--radius-sm);
+  background:rgba(255,255,255,.05);border:1px solid var(--border-default);
+  font-size:11px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;
+  color:var(--text-tertiary);box-shadow:var(--inner-top);
+}
+.section h2{
+  font-size:clamp(28px,3.4vw,44px);font-weight:700;
+  letter-spacing:-.028em;line-height:1.14;max-width:22em;
+}
+.section h2 .dim{color:var(--text-tertiary)}
+
+/* 功能三卡 */
+.cards3{display:grid;grid-template-columns:repeat(3,1fr);gap:var(--space-5);margin-top:var(--space-12)}
+.fcard{
+  position:relative;overflow:hidden;
+  padding:var(--space-6);border-radius:var(--radius-lg);
+  background:linear-gradient(180deg,rgba(255,255,255,.042),rgba(255,255,255,.012));
+  border:1px solid var(--border-default);
+  box-shadow:var(--inner-top);
+  transition:transform var(--dur-normal) var(--ease-out),
+             border-color var(--dur-normal) var(--ease-out),
+             box-shadow var(--dur-normal) var(--ease-out);
+}
+.fcard::after{
+  content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;
+  background:radial-gradient(420px 200px at 50% 0%, rgba(91,141,239,.10), transparent 72%);
+  opacity:0;transition:opacity var(--dur-normal) var(--ease-out);
+}
+.fcard:hover{transform:translateY(-3px);border-color:var(--border-strong);box-shadow:var(--shadow-md),var(--inner-top)}
+.fcard:hover::after{opacity:1}
+.fcard .num{
+  font-family:var(--font-mono);font-size:11px;letter-spacing:.08em;color:var(--text-tertiary);
+  display:flex;align-items:center;gap:var(--space-2);margin-bottom:var(--space-5);
+}
+.fcard .num::after{content:"";flex:1;height:1px;background:linear-gradient(90deg,var(--border-default),transparent)}
+.fcard .glyph{
+  height:112px;border-radius:var(--radius-md);
+  background:radial-gradient(180px 92px at 50% 100%, rgba(91,141,239,.08), transparent 76%), var(--bg-sunken);
+  border:1px solid var(--border-subtle);
+  margin-bottom:var(--space-5);display:grid;place-items:center;overflow:hidden;position:relative;
+}
+.fcard h3{font-size:17px;font-weight:600;letter-spacing:-.012em;margin-bottom:var(--space-3)}
+.fcard p{font-size:14px;line-height:1.62;color:var(--text-secondary)}
+
+/* 双入口 */
+.gates{display:grid;grid-template-columns:1fr 1fr;gap:var(--space-5)}
+.gate{
+  position:relative;overflow:hidden;
+  padding:var(--space-10) var(--space-8);
+  border-radius:var(--radius-xl);
+  background:linear-gradient(180deg,rgba(255,255,255,.038),rgba(255,255,255,.009));
+  border:1px solid var(--border-default);
+  box-shadow:var(--inner-top);
+  display:flex;flex-direction:column;
+  transition:transform var(--dur-normal) var(--ease-out),
+             border-color var(--dur-normal) var(--ease-out),
+             box-shadow var(--dur-normal) var(--ease-out);
+}
+.gate::after{
+  content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;
+  background:radial-gradient(560px 260px at 50% 0%, rgba(91,141,239,.15), transparent 72%);
+  opacity:0;transition:opacity var(--dur-normal) var(--ease-out);
+}
+.gate:hover{transform:translateY(-4px);border-color:var(--accent-400);box-shadow:var(--shadow-lg),var(--inner-top)}
+.gate:hover::after{opacity:1}
+.gate .g-no{
+  font-family:var(--font-mono);font-size:11px;letter-spacing:.1em;
+  color:var(--text-tertiary);margin-bottom:var(--space-5);
+}
+.gate h3{font-size:26px;font-weight:700;letter-spacing:-.025em;margin-bottom:var(--space-3)}
+.gate .desc{font-size:15px;color:var(--text-secondary);line-height:1.6;margin-bottom:var(--space-8)}
+.gate .btn{align-self:flex-start;margin-top:auto}
+
+/* ============================================================
+   7. 页脚
+   ============================================================ */
+.footer{
+  position:relative;z-index:1;
+  padding:var(--space-24) var(--space-8) var(--space-12);
+  text-align:center;border-top:1px solid var(--border-subtle);
+}
+.footer-brand{display:inline-flex;align-items:center;gap:var(--space-3);font-weight:700;font-size:18px;margin-bottom:var(--space-6)}
+.footer-links{margin-top:var(--space-8);display:flex;gap:var(--space-6);justify-content:center;flex-wrap:wrap}
+.footer-links a{color:var(--text-tertiary);font-size:13px;transition:color var(--dur-micro) ease-out}
+.footer-links a:hover{color:var(--text-primary)}
+.footer-note{margin-top:var(--space-3);font-size:12px;color:var(--text-disabled)}
+
+/* ============================================================
+   8. prefers-reduced-motion
+   ============================================================ */
+@media (prefers-reduced-motion: reduce){
+  *,*::before,*::after{
+    animation-duration:.01ms !important;animation-iteration-count:1 !important;
+    transition-duration:.01ms !important;scroll-behavior:auto !important;
+  }
+  #intro{display:none !important}
+  body.intro-open{overflow:auto !important}
+  body.intro-open .page-shell{visibility:visible !important}
+  body.intro-open .bg{visibility:visible !important}
+  .intro-word{opacity:1 !important;transform:translate(-50%,-50%) !important}
+  .reveal{opacity:1 !important;transform:none !important}
+}
+
+/* ============================================================
+   9. 响应式
+   ============================================================ */
+@media (max-width:1100px){
+  .hero-grid{grid-template-columns:1fr;gap:var(--space-12)}
+  .hero{min-height:auto;padding-top:var(--space-24)}
+  .cards3{grid-template-columns:1fr}
+}
+@media (max-width:820px){
+  .nav-center{display:none}
+  .gates{grid-template-columns:1fr}
+  .hero{padding-left:var(--space-6);padding-right:var(--space-6)}
+  .section{padding-left:var(--space-6);padding-right:var(--space-6)}
+}
+@media (max-width:640px){
+  .intro-stage{font-size:clamp(46px,15vw,72px)}
+  .intro-skip{bottom:var(--space-8)}
+}
+</style>
+</head>
+<body>
+
+<!-- ================= 背景层 ================= -->
+<div class="bg" aria-hidden="true">
+  <div class="bg-light"></div>
+  <div class="bg-vignette"></div>
+  <div class="bg-grid"></div>
+  <div class="bg-noise"></div>
+</div>
+
+<!-- ================= 开场动画层（首访播放，可跳过） ================= -->
+<div id="intro" role="dialog" aria-label="开场动画" aria-modal="true" hidden>
+  <div class="intro-grid" aria-hidden="true"></div>
+  <div class="intro-stage" aria-live="polite">
+    <div class="intro-word" data-i="0"><span class="ch">更</span><span class="ch">沉</span><span class="ch">浸</span></div>
+    <div class="intro-word" data-i="1"><span class="ch">更</span><span class="ch">恐</span><span class="ch">怖</span></div>
+    <div class="intro-word" data-i="2"><span class="ch">更</span><span class="ch">方</span><span class="ch">便</span></div>
+  </div>
+  <button class="intro-skip" id="introSkip">跳过 <kbd>ESC</kbd></button>
+</div>
+
+<!-- ================= 页面主体 ================= -->
+<div class="page-shell">
+
+  <nav class="nav" id="nav">
+    <div class="nav-brand">
+      <button class="brand-mark" aria-label="ARGX"><span>A</span></button>
+      <span class="nav-word">ARGX</span>
+      <span class="nav-chip">Developer preview</span>
+    </div>
+    <div class="nav-center">
+      <button class="nav-link">产品</button>
+      <button class="nav-link">文档</button>
+      <button class="nav-link">ARG 库</button>
+    </div>
+    <div class="nav-right">
+      <a href="console.html" class="btn btn--md btn--primary">进入控制台 <span class="arrow">→</span></a>
+    </div>
+  </nav>
+
+  <!-- ========== Hero ========== -->
+  <header class="hero">
+    <div class="hero-grid">
+
+      <div class="hero-left">
+        <h1 class="reveal">把网页变成<em>一间会呼吸的房间</em></h1>
+
+        <div class="hero-body">
+          <p class="hero-lead reveal">
+            ARGX 是一块<span>四路输出的开发板</span> —— 灯、声、振动、继电器。
+            它通过 USB 串口和你的网页对话：网页发一行 JSON，设备就执行。
+          </p>
+          <p class="hero-lead reveal" style="font-size:15px">
+            节奏由你的游戏控制。翻到哪一页，就发一次 cue。
+            插进你已经做好的网页里，不用重做游戏。
+          </p>
+        </div>
+
+        <div class="hero-cta">
+          <div class="hero-cta-row reveal">
+            <a href="console.html" class="btn btn--lg btn--primary">进入控制台 <span class="arrow">→</span></a>
+            <a href="console.html#docs" class="btn btn--lg btn--ghost">查看文档</a>
+          </div>
+          <div class="hero-cta-row reveal">
+            <a href="https://github.com" class="btn btn--lg btn--ghost">
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+              在 GitHub 上浏览
+            </a>
+            <a href="#" class="btn btn--lg btn--ghost">ARG 库</a>
+          </div>
+        </div>
+
+        <!-- 规格条：用真实参数填住 Hero 下半部，不做无意义的装饰 -->
+        <div class="hero-specs reveal">
+          <div class="spec">
+            <span class="spec-k">4</span>
+            <span class="spec-v">路输出<small>灯 / 声 / 振动 / 继电器</small></span>
+          </div>
+          <span class="spec-div"></span>
+          <div class="spec">
+            <span class="spec-k">&lt;15<small>ms</small></span>
+            <span class="spec-v">指令延迟<small>USB 串口往返</small></span>
+          </div>
+          <span class="spec-div"></span>
+          <div class="spec">
+            <span class="spec-k">1<small>行</small></span>
+            <span class="spec-v">接入成本<small>argx.cue({ … })</small></span>
+          </div>
+        </div>
+      </div>
+
+      <div class="hero-right">
+        <div class="code-tabs reveal">
+          <button class="code-tab act">快速开始</button>
+          <button class="code-tab">从源码安装</button>
+        </div>
+        <div class="terminal reveal">
+          <div class="terminal-bar">
+            <div class="dots"><i></i><i></i><i></i></div>
+            <span class="fname">argx-quickstart</span>
+          </div>
+          <div class="terminal-body">
+            <button class="term-copy">复制</button>
+            <div class="term-line">
+              <span class="prompt">$</span>
+              <span class="cmd">npm install @argx/sdk</span>
+            </div>
+            <div class="term-line">
+              <span class="prompt">$</span>
+              <span class="cmd">npx argx link</span>
+            </div>
+            <div class="term-line" style="margin-top:var(--space-3)">
+              <span class="prompt">›</span>
+              <span class="cmt">// 网页发一行 JSON，设备就执行</span>
+            </div>
+            <div class="term-line">
+              <span class="prompt">›</span>
+              <span class="cmt">argx.cue({ light: { to: 0, fade: 2000 } })</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </header>
+
+  <!-- ========== 能力三卡 ========== -->
+  <section class="section">
+    <div class="section-inner">
+      <div class="section-tag reveal">CAPABILITIES</div>
+      <h2 class="reveal">四路输出，<span class="dim">连续与开关并存。</span></h2>
+
+      <div class="cards3">
+        <div class="fcard reveal">
+          <div class="num">01 / CUE</div>
+          <div class="glyph">
+            <svg width="150" height="64" viewBox="0 0 150 64" fill="none">
+              <path d="M6 32h30" stroke="#33373E" stroke-width="1.5"/>
+              <rect x="40" y="18" width="42" height="28" rx="6" stroke="#5B8DEF" stroke-width="1.5" fill="rgba(91,141,239,.10)"/>
+              <rect x="52" y="27" width="18" height="10" rx="3" stroke="#5B8DEF" stroke-width="1.2"/>
+              <path d="M86 32h30" stroke="#33373E" stroke-width="1.5"/>
+              <circle cx="120" cy="32" r="5" fill="#0E9F6E"/>
+              <circle cx="120" cy="32" r="9" stroke="#0E9F6E" stroke-opacity=".28" stroke-width="1.5"/>
+            </svg>
+          </div>
+          <h3>游戏翻页，发一次 cue</h3>
+          <p>节奏由你的游戏控制。翻到哪一页，就发一次指令，灯和声音跟着变。</p>
+        </div>
+
+        <div class="fcard reveal">
+          <div class="num">02 / 4-CHANNEL</div>
+          <div class="glyph">
+            <svg width="150" height="64" viewBox="0 0 150 64" fill="none">
+              <g stroke-width="1.5" stroke-linejoin="round" fill="none">
+                <path d="M8 46 L30 46 L30 24 L52 24 L52 38 L74 38 L74 14 L96 14 L96 46 L118 46 L118 30 L142 30" stroke="#5B8DEF"/>
+              </g>
+              <circle cx="30" cy="24" r="2.5" fill="#F0A020"/>
+              <circle cx="52" cy="38" r="2.5" fill="#3B7BF0"/>
+              <circle cx="74" cy="14" r="2.5" fill="#8B5CF6"/>
+              <circle cx="118" cy="30" r="2.5" fill="#0E9F6E"/>
+            </svg>
+          </div>
+          <h3>连续量配时长，开关量只有两态</h3>
+          <p>灯、声、振是强度加持续时间；继电器只有开与关。区别在界面上直接可见。</p>
+        </div>
+
+        <div class="fcard reveal">
+          <div class="num">03 / SDK</div>
+          <div class="glyph">
+            <svg width="150" height="64" viewBox="0 0 150 64" fill="none">
+              <rect x="16" y="14" width="52" height="36" rx="7" stroke="#33373E" stroke-width="1.5"/>
+              <path d="M28 26h28M28 34h20" stroke="#3A3E46" stroke-width="1.5" stroke-linecap="round"/>
+              <rect x="82" y="14" width="52" height="36" rx="7" stroke="#8B5CF6" stroke-width="1.5" fill="rgba(139,92,246,.10)"/>
+              <path d="M94 26h28M94 34h20" stroke="#8B5CF6" stroke-width="1.5" stroke-linecap="round" stroke-opacity=".7"/>
+              <path d="M70 32h10" stroke="#8B5CF6" stroke-width="1.5"/>
+              <circle cx="77" cy="32" r="3" fill="#8B5CF6"/>
+            </svg>
+          </div>
+          <h3>插进你已经做好的网页</h3>
+          <p>一份 SDK，不用重做游戏。接入、配置、测试、展示，都在控制台完成。</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========== 双入口 ========== -->
+  <section class="section" style="padding-top:0">
+    <div class="section-inner">
+      <div class="gates">
+        <div class="gate reveal">
+          <div class="g-no">FOR DEVELOPERS</div>
+          <h3>我是开发者</h3>
+          <p class="desc">接入 SDK · 查看协议 · 调参数</p>
+          <a href="console.html#docs" class="btn btn--lg btn--ghost">进入文档 <span class="arrow">→</span></a>
+        </div>
+        <div class="gate reveal">
+          <div class="g-no">FOR PLAYERS</div>
+          <h3>我是玩家</h3>
+          <p class="desc">选作品 · 连设备 · 开始玩</p>
+          <a href="console.html#onboarding" class="btn btn--lg btn--primary">进入控制台 <span class="arrow">→</span></a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========== 页脚 ========== -->
+  <footer class="footer">
+    <div class="footer-brand">
+      <span class="brand-mark" style="width:26px;height:26px;border-radius:8px;border:1.5px solid currentColor;font-size:11px"><span>A</span></span>
+      ARGX
+    </div>
+    <a href="https://github.com" class="btn btn--lg btn--ghost">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+      在 GitHub 上浏览
+    </a>
+    <div class="footer-links">
+      <a href="#">文档</a><a href="#">协议</a><a href="#">状态</a>
+    </div>
+    <div class="footer-note">© 2026 ARGX</div>
+  </footer>
+
+</div>
+
+<script>
+const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+
+/* ============================================================
+   开场动画：首访播放 · 三词居中依次替换 · 可跳过
+   关键：判定与揭屏在「首帧内同步执行」，不依赖任何异步事件，
+        保证非首访时页面元素一定可见
+   ============================================================ */
+const SEEN_KEY = 'argx.intro.seen';
+(function intro(){
+  const el = $('#intro');
+  const skip = $('#introSkip');
+
+  function markSeen(){
+    try { sessionStorage.setItem(SEEN_KEY, '1'); } catch (e) {}
+  }
+  let seen = false;
+  try { seen = sessionStorage.getItem(SEEN_KEY) === '1'; } catch (e) { seen = true; }
+
+  // —— 不播放：同步移出场，立即揭屏 ——
+  if (reduce || seen || !el) {
+    if (el) el.remove();
+    startReveal();
+    document.body.classList.add('ready');
+    return;
+  }
+
+  // —— 播放：标记开场态，锁滚动（在首帧内完成，无闪烁）——
+  document.body.classList.add('intro-open');
+  el.hidden = false;
+  el.classList.add('lit');
+
+  const words = $$('.intro-word');
+  let timers = [];
+  let finished = false;
+
+  function finish(){
+    if (finished) return;
+    finished = true;
+    timers.forEach(clearTimeout);
+    markSeen();
+    document.body.classList.remove('intro-open');
+    el.classList.add('done');
+    setTimeout(function(){
+      el.remove();
+      startReveal();
+      document.body.classList.add('ready');
+    }, 680);
+  }
+
+  // 三词在正中央依次替换：整词每 1050ms 上一个，词内逐字错峰 105ms
+  const WORD_GAP = 1050;
+  const WORD_LEAD = 420;
+  const CHAR_GAP = 105;
+  const HOLD_AFTER_LAST = 1100;
+
+  words.forEach(function(w, i){
+    timers.push(setTimeout(function(){
+      if (i > 0) words[i - 1].classList.add('past');
+      w.classList.add('on');
+    }, WORD_LEAD + i * WORD_GAP));
+
+    $$('.ch', w).forEach(function(c, ci){
+      c.style.transitionDelay = (ci * CHAR_GAP) + 'ms';
+    });
+  });
+
+  const TOTAL = WORD_LEAD + (words.length - 1) * WORD_GAP + 780 + HOLD_AFTER_LAST;
+  timers.push(setTimeout(finish, TOTAL));
+
+  // 跳过：按钮 / ESC / 点击任意处
+  skip.addEventListener('click', function(e){ e.stopPropagation(); finish(); });
+  el.addEventListener('click', finish);
+  document.addEventListener('keydown', function esc(e){
+    if (e.key === 'Escape') { finish(); document.removeEventListener('keydown', esc); }
+  });
+})();
+
+/* ============================================================
+   区块进入视口揭示
+   ============================================================ */
+function startReveal(){
+  const io = new IntersectionObserver((entries) => {
+    entries.forEach(e => {
+      if (e.isIntersecting) { e.target.classList.add('on'); io.unobserve(e.target); }
+    });
+  }, { threshold: 0.12, rootMargin: '0px 0px -6% 0px' });
+
+  // 首屏元素依次揭示（带错峰）
+  const heroItems = $$('.hero .reveal');
+  heroItems.forEach((el, i) => {
+    if (reduce) { el.classList.add('on'); return; }
+    setTimeout(() => el.classList.add('on'), i * 90);
+  });
+  $$('.section .reveal, .footer .reveal').forEach(el => io.observe(el));
+}
+
+/* ============================================================
+   顶部导航吸附
+   ============================================================ */
+const nav = $('#nav');
+const onScroll = () => nav.classList.toggle('scrolled', window.scrollY > 40);
+window.addEventListener('scroll', onScroll, { passive: true });
+onScroll();
+
+/* ============================================================
+   保底：任何异常都不该让页面留在「不可见」状态
+   ============================================================ */
+function forceVisible(){
+  document.body.classList.remove('intro-open');
+  document.body.classList.add('ready');
+  $$('.reveal').forEach(el => el.classList.add('on'));
+}
+try { requestAnimationFrame(forceVisible); } catch (e) { forceVisible(); }
+</script>
+</body>
+</html>

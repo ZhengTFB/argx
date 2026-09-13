@@ -3,6 +3,17 @@
 你是本项目的实现者。本文件在每次会话自动加载，是唯一常驻入口。
 **开工前完整读完本文件；进入某阶段前，完整读完该阶段任务书。**
 
+> **当前阶段是「阶段四：界面重做」。**
+> 除本文件外，开工前还要读 `design/README.md`。
+>
+> **两条最重要的原则先记住：**
+>
+> 1. **界面长什么样 → `design/` 说了算**（`design/prototype/*.html` 是最终答案）
+> 2. **界面上有哪些功能 → 底层代码说了算**（`protocol/` `firmware/` `device/` `sdk/`
+>    `console/src/core/`），**不看旧界面**
+>
+> 阶段二、三做出的"小白工作台 / 专业工作台"两套界面**已全部作废**。
+
 ---
 
 ## 1. 项目是什么
@@ -69,9 +80,14 @@ argx/
 ├── CLAUDE.md              # 本文件：常驻规则 + 阶段指针
 ├── docs/
 │   ├── ARGX-01-协议与设备端.md
-│   ├── ARGX-02-控制台与模拟器.md
+│   ├── ARGX-02-控制台与模拟器.md      # ⚠️ 界面部分已作废
 │   ├── ARGX-03-Demo与SDK.md
+│   ├── ARGX-04-界面重做.md            # ← 界面怎么做看这份
 │   └── PROGRESS.md        # 阶段状态，你每次收尾时更新
+├── design/                # ★ 界面设计真源（原型 + 设计文档）
+│   ├── README.md          #   入口：谁权威、怎么用
+│   └── prototype/         #   index.html（首页）/ console.html（控制台）
+├── landing/               # 官网首页（阶段四新建）
 ├── protocol/              # 协议规范（唯一权威来源）
 ├── firmware/              # 设备端：可直刷的 Arduino 代码
 ├── device/                # 虚拟设备（调试主力）
@@ -118,7 +134,23 @@ argx/
 
 **原则：方向性偏离 → 问我。需要我的手 → 问我。其余自己定，最后汇报。**
 
-开发环境和依赖自己装，装不上才找我。UI 配色、布局、文案、SDK 接口命名等细节一律自己定，不要问我。
+开发环境和依赖自己装，装不上才找我。
+
+> ### ⚠️ 关于 UI 细节：这条规则已改（阶段四起生效）
+>
+> ~~UI 配色、布局、文案、SDK 接口命名等细节一律自己定，不要问我。~~
+>
+> **改成：**
+>
+> - **配色、布局、组件形态、动效** → **以 `design/` 目录为准，不由你决定。**
+>   界面真源是 `design/prototype/*.html`；实施任务书见 `docs/ARGX-04-界面重做.md`。
+> - **界面该有哪些功能** → 看底层代码（`protocol/` `firmware/` `device/` `sdk/`
+>   `console/src/core/`），不看旧界面。
+> - **界面上的文案措辞** → 仍然自己定。
+> - **SDK 接口命名** → 仍然自己定义（这条没变）。
+>
+> 想加一个原型里没有、底层代码里也找不到出处的功能时，**先问我**——
+> 那说明要么你想偏了，要么发现了底层缺口，两种都值得停下来说。
 
 ## 9. 开工第一步（进入阶段一之前完成）
 
@@ -133,8 +165,12 @@ argx/
 进度总览：@docs/PROGRESS.md
 
 当前阶段任务书（阶段推进后，把这一行改成对应文件）：
-@docs/ARGX-03-Demo与SDK.md
+@docs/ARGX-04-界面重做.md
 
+> **阶段四开工前，除本文件外还要先读两份：**
+> `@design/README.md`（界面真源在哪、谁权威）与 `@docs/PROGRESS.md` 的
+> 「界面设计真源变更」一节（作废了什么、留下了什么）。
+>
 > 同一会话内切换阶段时，本文件的修改不会立即生效——此时直接用 Read 工具打开新阶段任务书。
 
 ## 11. 已知待确认项（按默认理解先做，不要停下问）
@@ -156,13 +192,12 @@ node tests/sdk_smoke.js           # SDK 接虚拟设备真跑一遍（23 项）
 node tests/agents_guide.js        # 照着 sdk/AGENTS.md 抄一遍能不能跑（12 项）
 node tests/demo_smoke.mjs         # Demo 端到端，自带静态服务器（26 项）
 
-# 控制台（阶段二产物，阶段三的界面也在里面）
+# 控制台（阶段二产物；阶段四按 design/ 重做界面）
 cd console
 npm install
-npm run dev                       # http://localhost:5173（默认进小白控制台）
+npm run dev                       # http://localhost:5173
 npm run build                     # 类型检查 + 打包 → dist/（纯静态，含 demo/ 与 sdk/）
-node scripts/smoke.mjs            # 专业控制台端到端，需先 npm run dev（26 项）
-node scripts/smoke-basic.mjs      # 小白控制台端到端，需先 npm run dev（34 项）
+node scripts/smoke.mjs            # 控制台端到端，需先 npm run dev（阶段四按新界面重写）
 
 # 编译固件（本机没有 g++/clang，C++ 只能靠这条）
 CLI=/c/Users/msa/.argx-tools/arduino-cli.exe
@@ -170,12 +205,18 @@ $CLI compile -b esp32:esp32:esp32s3 firmware/argx_mvp    # 目标板 S3
 $CLI compile -b esp32:esp32:esp32   firmware/argx_mvp    # 老款 WROOM-32E
 ```
 
-控制台的分区可以直接用 hash 打开。两套界面各占自己的 hash 空间，互不重叠：
+控制台的分区可以直接用 hash 打开。**阶段四起只有一套界面，hash 空间按新栏目重定：**
 
-- 小白控制台（默认）：`#home` `#device` `#library` `#help` `#play:<作品 id>`
-- 专业控制台：`#overview` `#devices` `#works` `#simulator` `#timeline` `#docs` `#creator`
+- `#onboarding` `#library` `#device` `#simulator` `#docs` `#debug`
 
-带 hash 打开就直接进对应的那一套，所以老链接（`#simulator` 之类）没失效。
+> ⚠️ 旧的两套 hash 空间（小白版的 `#home` `#help` `#play:<id>`、
+> 专业版的 `#overview` `#works` `#timeline` `#creator`）**已作废**。
+> `#device` `#library` `#simulator` `#docs` 语义没变可以复用；
+> 其余旧 hash 要重定向到最接近的新栏目，**不留死链**。
+> 具体映射由阶段四实施时定，写进决策记录。
+>
+> `scripts/smoke-basic.mjs`（旧小白版冒烟）与旧的 `scripts/smoke.mjs`
+> 已在阶段四**删除并重写**。
 
 `arduino-cli.exe` 故意放在仓库外（`C:\Users\msa\.argx-tools\`），不要提交进仓库。
 esp32 core 3.3.11 已装好，不需要再 `core install`。
@@ -188,18 +229,26 @@ esp32 core 3.3.11 已装好，不需要再 `core install`。
 | `firmware/argx_mvp/` | Arduino 草稿目录。会话层 + 能力层 + 入口 | — |
 | `device/` | 虚拟设备，协议的第二实现，也是控制台模拟器的底座 | 阶段二 |
 | `tests/` | 标准帧序列 + 跑它的命令行脚本 | 全部 |
-| `console/` | 中枢控制台（Vite + React + TS + Tailwind）。模拟器**直接引用** `device/virtual_device.js`，不复制不重写 | 两套界面都在这里 |
+| `console/` | 中枢控制台（Vite + React + TS + Tailwind）。模拟器**直接引用** `device/virtual_device.js`，不复制不重写 | 唯一一套界面 |
+| `design/` | **界面设计真源**。`prototype/*.html` 是最终视觉答案；六份设计文档解释每个决定 | 全部界面 |
+| `landing/` | 官网首页（阶段四建）。独立于控制台，不做数据、不做路由 | — |
 | `sdk/` | 网页 SDK，零依赖纯原生 JS + `AGENTS.md`（给 AI 看的集成规范） | 全部第三方作品 |
-| `demo/` | 示例作品。`script.json` 是剧本数据，控制台的 ARG 库也读同一份 | 小白控制台的播放器 |
+| `demo/` | 示例作品。`script.json` 是剧本数据，控制台的 ARG 库也读同一份 | 控制台的播放器 |
 
 控制台里几块的分工：
 
 - `transports/`（通道）、`core/`（会话层与状态，**不依赖框架**）
-- `panels/` 与 `simulator/`（专业版界面，深色）
-- `views/pro/`（专业版外壳）与 `views/basic/`（小白版，浅色）——两套界面各占一层
-- `core/sdk.ts` 与 `core/sdkTransports.ts`：把阶段三的 SDK 接进来，小白版整个建在它上面
+- `works.ts`（作品数据）、`data/`（剧本数据）
+- 界面代码按新栏目组织（阶段四重做）——栏目清单见 `design/01-信息架构.md`
+
+> ⚠️ 旧的 `panels/`（专业版面板）、`simulator/`（旧模拟器 UI）、
+> `views/pro/`（专业版外壳）、`views/basic/`（小白版）**四个目录已在阶段四删除**。
+> 现在只有一套界面。
 
 改协议的顺序永远是：先改 `protocol/`，再改 `firmware/` 与 `device/`，最后补 `tests/`。
+
+**改界面的顺序是**：先看 `design/prototype/*.html`，再看 `design/` 里对应的文档，
+最后才动 `console/` 或 `landing/` 的代码。**不要凭记忆写样式。**
 
 **SDK 与 Demo 的位置关系**：`demo/index.html` 只加载 `../sdk/argx.js`，
 `console/vite.config.ts` 里那个插件负责让 dev server 与构建产物都能拿到这两个目录
@@ -230,9 +279,9 @@ esp32 core 3.3.11 已装好，不需要再 `core install`。
 9. **控制台的 node_modules 与 dist 已进 .gitignore**，别用 `git add -A` 一把梭。
 10. **模拟器的可视化数据全部来自 `device.getState()`**，界面上不另算协议状态。
     改协议时只要那份文件的 state 形状对，界面就跟着对。
-11. **SDK 是单例**（一个页面一个 `ARGX`）。小白控制台只用一个会话，所以够用；
+11. **SDK 是单例**（一个页面一个 `ARGX`）。控制台只用一个会话，所以够用；
     将来要在一个页面里同时接两台装置，得先给它加一个实例化入口。
-12. **同一条通道上挂了两个会话**：小白控制台自己的 SDK 会话，和 iframe 里 Demo 的。
+12. **同一条通道上挂了两个会话**：控制台自己的 SDK 会话，和 iframe 里 Demo 的。
     所以 `sdkTransports.ts` 里的 `connect()` 必须幂等——串口的 connect 是
     `requestPort()`，第二次调用既会二次弹窗、又不在用户的点击调用栈里，浏览器直接拒。
 13. **Demo 的 iframe 顺序不能反**：先把通道挂到 `window.ARGX_HOST_TRANSPORT`，
@@ -260,7 +309,7 @@ esp32 core 3.3.11 已装好，不需要再 `core install`。
 - 控制台的会话层不依赖框架，阶段三的 SDK 直接搬它，别写第三份
 - 模拟器进来自动连虚拟装置；可视化用 rAF 读 getState()，不进全局 store
 
-阶段三（SDK / Demo / 小白控制台）：
+阶段三（SDK / Demo / 界面基础）：
 
 - SDK 的会话层是 `console/src/core/session.ts` 的逐条翻译，不是新写一套；改一个必须改另一个
 - SDK 的传输层收**对象**、自己序列化与定界（补换行那类契约要能被漏掉，干脆让它不存在）
@@ -268,8 +317,22 @@ esp32 core 3.3.11 已装好，不需要再 `core install`。
 - `fire()` 按装置的能力声明过滤再发——不过滤的话 `batch` 的校验原子性会把整条事件丢掉
 - 没装置、连不上、`file://`：一律静默降级，cue 打到 console，绝不抛错也绝不弹窗
 - 装置只负责演，剧情判定一行都不许依赖它（AGENTS.md 第 4 节，这是硬性要求）
-- 小白控制台整个建在 SDK 上，SDK 的第一个用户就是自己
-- 小白版与专业版是两条独立连接，各连各的装置，互不干扰
+- ~~小白控制台整个建在 SDK 上，SDK 的第一个用户就是自己~~
+  → ⚠️ 小白版已删。**新界面仍然建在 SDK / `core/` 之上**，这条的意图保留
+- ~~小白版与专业版是两条独立连接，各连各的装置，互不干扰~~
+  → ❌ 作废。只有一套界面、一条连接
 - 作品播放器嵌真页面（iframe + 宿主通道），不在 React 里重写一份剧情界面
-- 小白版的四路状态全部来自 `ARGX.state()` 回查，界面不本地记账
-- 专业版一行没改：只把 `App.tsx` 主体整体搬成 `views/pro/ProApp.tsx`
+- 四路状态全部来自 `ARGX.state()` 回查，**界面不本地记账**（这条阶段四依然必须遵守）
+- ~~专业版一行没改：只把 `App.tsx` 主体整体搬成 `views/pro/ProApp.tsx`~~
+  → ❌ 作废。`views/pro/` 已删
+
+阶段四（界面重做）：
+
+- **界面视觉以 `design/` 为准**，`design/prototype/*.html` 是最终答案；不要凭记忆写样式
+- **界面功能以底层代码为准**（`protocol/` `firmware/` `device/` `sdk/` `console/src/core/`），
+  不从旧界面推
+- 所有间距 / 圆角 / 字号 / 色值走 token，**禁止魔法值**
+- 禁止多色相彩色渐变；只允许同色相明度渐变与中性透明渐变
+- 动效只动 `transform` / `opacity` / `filter` / 颜色 / `box-shadow` / `clip-path`
+- 连续量（灯/声/振动）与开关量（继电器）**在视觉形态与切换动效上必须区分**
+- `core/session.ts` 的行为、`transports/` 的契约、`device/virtual_device.js` 一个字不改
