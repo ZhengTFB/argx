@@ -1,212 +1,263 @@
-# ARGX
+<div align="center">
 
-让网页上的故事操控现实物件的通用连接设施。
+<img src="design/logo.svg" width="320" alt="ARGX">
 
-网页发一行 JSON，装置就执行——灯、声音、振动、继电器。任何 ARG 能接，任何装置能用。
+**Turn your room into an escape room.**
 
----
+A protocol and SDK that let a web page drive real-world hardware — lights, sound, vibration, relays — over a USB serial line.
 
-## 它解决什么问题
+[![tests](https://github.com/ZhengTFB/argx/actions/workflows/test.yml/badge.svg)](https://github.com/ZhengTFB/argx/actions/workflows/test.yml)
+[![license](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![protocol](https://img.shields.io/badge/protocol-v1-blue.svg)](protocol/PROTOCOL.md)
+[![website](https://img.shields.io/badge/website-online-brightgreen.svg)](https://zhengtfb.github.io/argx/)
+![dependencies](https://img.shields.io/badge/dependencies-0-brightgreen.svg)
+[![PRs](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](https://github.com/ZhengTFB/argx/issues)
 
-ARG（替代现实游戏）的本质是**故事溢出到现实**：玩家不只是在读剧情，他觉得故事真的发生在他身边。
-但最后一步一直缺着——玩家房间里的灯、声音、抽屉，没有跟着故事动。
+**English** ｜ [简体中文](README.zh-CN.md)
 
-已有的做法都是**为一个游戏做一套装置**：剧本和硬件焊死在一起，换个故事就得重做一遍。
+</div>
 
-ARGX 补的是中间那一层：**不是装置，也不是游戏，是它们之间那根线**。
-
-> ARG 是电影，硬件装置是音响，本项目做的是那根**标准音频线**。
-> 有了标准线，任何电影都能接任何音响，两边都不用为对方改自己。
-
-具体来说，它给出三样东西：
-
-- **一份协议**（[`protocol/PROTOCOL.md`](protocol/PROTOCOL.md)）——每行一条 JSON，两端地位对等
-- **一个网页 SDK**（[`sdk/`](sdk/)）——零依赖纯原生 JS，整段复制进单文件 HTML 就能用
-- **一个控制台**（[`console/`](console/)）——连接、自检、模拟、调试、看文档，都在一个页面里
-
----
-
-## 三个角色
-
-| 角色 | 会什么、不会什么 | 得到什么 |
-|---|---|---|
-| **创作者** | 会写故事，不懂硬件。大多在用 AI 写代码 | 一行 `ARGX.fire('reveal')` 就能让房间跟着剧情动。不用学单片机，不用配驱动 |
-| **玩家** | 想要更真的体验，不想折腾 | 买一个装置，插上 USB，点一下连接。没有装置时整场戏照常能玩 |
-| **硬件作者** | 会做装置，不想每个装置都从零写全套通信 | 实现一份协议就能接入全部作品。加新能力是注册一行，不改协议本身 |
-
-有一条判断贯穿了整个 SDK 的设计：
-
-> **创作者的真实客户接口是他的 AI，不是创作者本人。**
+> Hardware side (wiring, pins, build and flash, debugging) lives in another repository → **[argx-esp32](https://github.com/ZhengTFB/argx-esp32)**
 >
-> 作者不会来读文档。他的工作流是对 AI 说「给这场景加点氛围」。
-> 所以 [`sdk/AGENTS.md`](sdk/AGENTS.md) 是**写给 AI 助手看的**集成规范，
-> 它教的是 `ARGX.fire('reveal')` 这种词，而不是「哪路灯配多大亮度」。
+> Letting an AI assistant integrate ARGX into a page you already wrote → **[argx-skill](https://github.com/ZhengTFB/argx-skill)** (or read [`guide/ai-skill.md`](guide/ai-skill.md))
 
 ---
 
-## 架构
+## What it is
+
+ARG (alternate reality game) works when the story spills out of the screen. Players are not just reading a plot — they feel it happening around them. The last step has always been missing: the lights, the sounds, the drawers in the player's room do not move with the story.
+
+The usual approach builds one set of hardware for one game. Script and hardware are welded together, so the next story needs new hardware.
+
+ARGX supplies the layer in between. It is not a device and it is not a game; it is the line between them.
+
+> A film is the story. Speakers are the hardware. This project is the standard audio cable.
+> With a standard cable, any film can use any speaker, and neither side has to change for the other.
+
+Concretely, it gives you three things:
+
+- **A protocol** ([`protocol/PROTOCOL.md`](protocol/PROTOCOL.md)) — one JSON object per line, both ends equal
+- **A web SDK** ([`sdk/`](sdk/)) — zero dependencies, plain JavaScript, paste it into a single-file HTML project
+- **A console** ([`console/`](console/)) — connect, self-test, simulate, debug and read the docs in one page
+
+## The three roles
+
+| Role | What they know | What they get |
+|---|---|---|
+| **Creator** | Writes stories, not firmware. Usually lets an AI write the code | One call, `ARGX.fire('reveal')`, and the room follows the story. No microcontrollers, no drivers |
+| **Player** | Wants a stronger experience, does not want to configure anything | Buy a device, plug in USB, click connect. Without a device the whole game still plays through |
+| **Hardware author** | Builds devices, does not want to write a full communication stack per device | Implement the protocol once and every work can use your device. Adding a capability is one registration line, not a protocol change |
+
+One judgement shaped the whole SDK design:
+
+> **A creator's real client interface is their AI, not the creator.**
+>
+> Creators do not read documentation. Their workflow is telling an AI "add some atmosphere to this scene".
+> So [`sdk/AGENTS.md`](sdk/AGENTS.md) is an integration spec **written for AI assistants**: it teaches
+> `ARGX.fire('reveal')` rather than which channel deserves which brightness.
+
+## Architecture
 
 ```
-        浏览器
+        Browser
   ┌───────────────────────┐
-  │  控制台  ／  第三方作品  │
+  │  Console ／ third-party work │
   └───────────┬───────────┘
-              │  SDK —— 零依赖，可整段复制进单文件 HTML
-              │  协议：每行一条 JSON
-              │
+              │  SDK: zero dependencies, paste into single-file HTML
+              │  Protocol: one JSON object per line
         ┌─────┴─────┐
-        │  传输层    │   Web Serial ／ Mock（虚拟装置）
+        │ Transport │   Web Serial ／ Mock (virtual device)
         └─────┬─────┘
               │
   ┌───────────┴───────────┐
-  │   ESP32 装置（固件）    │
-  │  灯 / 声音 / 振动 / 继电器 │
+  │   ESP32 device (firmware) │
+  │  light / sound / vibration / relay │
   └───────────────────────┘
 ```
 
-两条设计决定值得先讲清楚，因为后面所有取舍都是从它们推出来的：
+Two decisions explain everything else:
 
-**两端地位对等，不是主从。** 网页端和装置跑的是**同一套会话层**（握手、心跳、ACK、重连、看门狗），
-只是各自注册的处理器不同。所以「多装置协同」「一个装置被多个网页同时看着」这类扩展
-不需要改结构——协议本来就是对称的。
+**Both ends are peers, not a master and a slave.** The page and the device run the **same session layer** — handshake, heartbeat, ack, reconnect, watchdog — and differ only in which handlers they register. Multi-device and multi-page setups need no structural change, because the protocol is already symmetric.
 
-**协议是唯一权威。** 两端实现都从 `protocol/PROTOCOL.md` 派生。装置端固件、虚拟设备、
-SDK 会话层是三份实现，改协议先改文档，再改实现。
+**The protocol is the single source of truth.** Both implementations derive from `protocol/PROTOCOL.md`. The firmware, the virtual device and the SDK session layer are three implementations of it. Protocol changes start in the document.
 
----
+## Protocol at a glance
 
-## 快速开始
+Every frame is one line of JSON, terminated by `\n`. Nothing else is on the wire except `#`-prefixed debug lines, which receivers ignore.
 
-### ① 我只想看看
+| Field | Meaning |
+|---|---|
+| `v` | Protocol version. Currently `1` |
+| `c` | Command name |
+| `id` | Capability id, such as `light.main` (only for `cue`) |
+| `p` | Parameter object. All behaviour lives here; the top level is routing only |
+| `seq` | Sequence number, used to pair a command with its `ack` |
+| `dev` | Device id |
 
-- 介绍页：<https://zhengtfb.github.io/argx/>
-- 控制台：<https://zhengtfb.github.io/argx/console/>
+A capability is an output or input object addressed by id (`light.main`, `sound.beeper`, `motion.vibrate`, `env.relay`). The device declares which ones it has:
 
-打开控制台就能用**内置的虚拟装置**玩一遍——不需要买任何硬件。
+```json
+{"v":1,"c":"ready","dev":"ARGX-0001","proto":1,
+ "caps":{"out":["light.main","sound.beeper","motion.vibrate","env.relay"],
+         "in":[]}}
+```
 
-> **部署在 GitHub Pages 上的控制台，连的是你自己电脑上的 USB 口，不是服务器的。**
-> Web Serial 只在 HTTPS 或 `localhost` 下可用，Pages 是 HTTPS，所以能连；
-> 但端口枚举与授权发生在**访问者的浏览器和访问者的电脑之间**。
-> 也就是说：你打开那个网址，插上你的 ESP32，点「连接」，就能用。
+A minimal complete round trip — the page asks the light to fade to 80% over 800ms, the device confirms:
 
-### ② 我只想跑跑（不需要硬件）
+```
+→ {"v":1,"c":"cue","id":"light.main","seq":12,"p":{"i":0.8,"dur":3000,"ramp":800,"pri":2}}
+← {"v":1,"c":"ack","seq":12,"r":"applied"}
+```
+
+Commands run both ways. The page sends `hello` `cue` `batch` `query` `cfg` `ping` `reset`; the device sends `ready` `ack` `state` `input` `pong` `err`. Nothing in the protocol is reserved to one side.
+
+The five cue parameters:
+
+| Parameter | Type | Default | Meaning |
+|---|---|---|---|
+| `i` | 0 ~ 1 | 1.0 | Intensity. Out-of-range values are clamped, not rejected |
+| `dur` | integer ms | 30000 | Duration. 30000 is also the ceiling |
+| `ramp` | integer ms | 0 | Fade-in time. Clamped to `dur` if longer |
+| `pri` | 0 ~ 3 | 2 | Priority. **Lower is stronger** |
+| `hold` | true / false | false | Stay on, ignoring `dur`, until preempted or reset |
+
+The fixed numbers:
+
+| Item | Value |
+|---|---|
+| Frame delimiter | `\n` (`\r\n` tolerated) |
+| Maximum frame | 512 bytes |
+| Heartbeat | 3000 ms, sent by the page |
+| Declared lost | 10000 ms without a `pong` |
+| Watchdog | 15000 ms without any valid frame; the device clears all output |
+| Maximum effect | 30000 ms, `hold` excepted |
+| Maximum `batch` | 8 cues |
+
+Every processed cue gets an `ack` carrying `r` — `applied`, `preempted`, `dup` or `dropped`. An `ack` that says "received but not run" is the difference between a quiet device and a broken link.
+
+## Why it is built this way
+
+**One JSON object per line.** It is readable, it can be `tee`'d, and you can debug it by eye. When something breaks you see `{"c":"cue","id":"light.main","p":{"i":0.4}}` instead of bytes that need decoding. The cost is a few more bytes per frame; the benefit is that serial debugging stops being the hard part of the project.
+
+**Both ends are peers.** See above. The cost is that each end implements the session layer. The benefit is that multi-device and multi-page setups need no redesign.
+
+**The protocol is the foundation, not the SDK.** The SDK is one convenience layer over it. A creator using the SDK, a creator writing raw frames, and a firmware author implementing the device side all work against the same document — so a new language or platform only needs a new implementation, not a new spec.
+
+**The SDK has zero dependencies and fits in a single file.** Most creator projects are one HTML file produced by an AI. Any build step or `npm install` breaks at exactly that point. `sdk/argx.js` is one file of plain JavaScript loaded with `<script src>`.
+
+**Degrading beats failing.** No hardware, failed connection, a `file://` page: every call **succeeds silently**. Cues go to the console log and the story continues. Nothing throws, nothing pops a dialog, nothing blocks the plot. The device performs; game logic never depends on it.
+
+**Capabilities are registered, not enumerated.** Adding an output means registering a capability id on the device side and declaring its parameters. The protocol has no `switch(id)` and no hard-coded feature list, so new hardware needs no protocol change and no SDK change.
+
+**Semantic cues only, never pin levels.** The page says "light to 40%", not "GPIO4 to PWM 102". Which pin holds what is the device's business — that is why swapping boards does not require touching a work.
+
+## Getting started
+
+### Just look
+
+- Landing page: <https://zhengtfb.github.io/argx/>
+- Console: <https://zhengtfb.github.io/argx/console/>
+
+The console ships with a **built-in virtual device**, so you can play a work end to end without buying anything.
+
+> The console on GitHub Pages talks to **your own computer's USB port**, not the server's.
+> Web Serial requires HTTPS or `localhost`; Pages is HTTPS, so it works. Port enumeration and
+> authorisation happen between the visitor's browser and the visitor's computer: you open the
+> page, plug in your ESP32, click connect.
+
+### Just run it (no hardware)
 
 ```bash
 git clone https://github.com/ZhengTFB/argx.git
 cd argx
 
-# 四条闸门，零依赖，不需要装任何东西
-node tests/run.js            # 协议一致性      22 场景 / 213 项
-node tests/sdk_smoke.js      # SDK 接虚拟设备真跑一遍   23 项
-node tests/agents_guide.js   # 照着 AGENTS.md 抄一遍能跑 12 项
-node tests/demo_smoke.mjs    # Demo 端到端             31 项
+# Four gates. Zero dependencies, nothing to install.
+node tests/run.js            # protocol conformance      22 scenarios / 213 checks
+node tests/sdk_smoke.js      # SDK against the virtual device      23 checks
+node tests/agents_guide.js   # run the AGENTS.md snippet as written 12 checks
+node tests/demo_smoke.mjs    # demo end to end                     31 checks
 
-# 起控制台（需要 Node 20.19+ / 22.12+）
+# Start the console (needs Node 20.19+ / 22.12+)
 cd console
 npm install
 npm run dev                  # http://localhost:5173
 ```
 
-控制台里**进来就自动接上虚拟装置**：模拟器页能直接触发四路输出并看到可视化，
-设备页能跑自检，调试页能手动发 cue 并看到回执。
+The console connects to the virtual device on its own. The simulator page fires all four outputs and shows them, the device page runs a self-test, and the debug page sends cues by hand and shows the acks.
 
-想预览「部署出去长什么样」：
+To preview what a deployment looks like:
 
 ```bash
 cd console && npm run build && cd ..
 node tools/site.mjs --serve          # http://localhost:4173/argx/
-node tools/site.mjs --check          # 无头浏览器走查全站，扫 404 与异常
+node tools/site.mjs --check          # headless browser walk-through, scans for 404s and exceptions
 ```
 
-### ③ 我想接真硬件
+### Connect real hardware
 
-硬件侧（接线、引脚、编译烧录、故障排查）在另一个仓库：
+The hardware side — wiring, pins, building, flashing, troubleshooting — is a separate repository:
 
 **→ [`argx-esp32`](https://github.com/ZhengTFB/argx-esp32)**
 
-本仓库的 [`firmware/`](firmware/) 是同源码的一份拷贝，方便协议与固件对照着看。
+[`firmware/`](firmware/) here is a copy of the same source, so the protocol and the firmware can be read side by side.
 
----
+### Let an AI do the integration
 
-## 目录结构
+**[`argx-skill`](https://github.com/ZhengTFB/argx-skill)** is a self-contained skill package for the AI assistant of someone who already has an ARG page. It reads the page, proposes where the story beats should move the room, makes the changes, verifies its own work against a ten-item checklist, and hands back the files.
+
+It ships with the protocol, the full SDK API, the event vocabulary, the parameter table, the error codes and the constants — so the assistant never has to look anything up in this repository.
+
+You do not have to read any of it. Hand the repository to the assistant and ask it to integrate ARGX.
+
+## Repository layout
 
 ```
 argx/
-├── protocol/     协议规范——唯一权威。两端实现都从这里派生
-├── firmware/     ESP32 固件（Arduino C++）。会话层 + 能力层 + 入口
-├── device/       虚拟设备。协议的第二实现，也是控制台模拟器的底座
-├── tests/        标准帧序列（frames.json）与跑它的命令行脚本
-├── sdk/          网页 SDK。零依赖纯原生 JS + AGENTS.md（给 AI 看的集成规范）
-├── demo/         极简 ARG 示例作品。控制台的 ARG 库读同一份剧本
-├── console/      控制台（Vite + React + TS）。模拟器直接引用 device/，不复制
-├── landing/      介绍页。零构建，原生 HTML/CSS/JS
-├── design/       界面设计真源。原型 + 六份设计文档 + tokens.css
-├── tools/        发布工具：GitHub Pages 站点的组装与校验
-└── docs/         各阶段任务书与进度记录（PROGRESS.md 记着每个决策的理由）
+├── protocol/      Protocol spec. The single source of truth. Both implementations derive from it
+├── firmware/      ESP32 firmware (Arduino C++): session layer, capability layer, entry point
+├── device/        Virtual device. The protocol's second implementation, and the simulator's base
+├── tests/         Standard frame sequences (frames.json) and the scripts that run them
+├── sdk/           Web SDK: zero dependencies, plain JS, plus AGENTS.md (the AI-facing spec)
+├── demo/          A minimal example work. The console's library reads the same script
+├── console/       Console (Vite + React + TS). The simulator imports device/, never copies it
+├── landing/       Landing page. Zero build, plain HTML/CSS/JS
+├── guide/         User-facing documentation. The only place the prose lives; the console's
+│                  documentation page is generated from it
+├── design/        Interface source of truth: prototypes, six design documents, tokens.css
+├── tools/         Release tooling: assemble and verify the GitHub Pages site, build guide/
+└── docs/          Stage briefs and progress notes (PROGRESS.md records why each decision was made)
 ```
 
-`CLAUDE.md` 是给 AI 助手看的项目总纲——硬约束、已知坑、决策记录。
-如果你也用 AI 写这个项目的代码，从它开始。
+`CLAUDE.md` is the project charter written for AI assistants — hard constraints, known traps, decision records. If you write code for this project with an AI, start there.
 
----
-
-## 为什么这么设计
-
-**协议每行一条 JSON。** 可读、可 `tee`、可人肉调试。出问题时你看到的是
-`{"c":"cue","id":"light.main","p":{"i":0.4}}`，而不是一段需要解码的二进制。
-串口调试的成本几乎为零——这一条换来的是整个项目最容易的部分。
-
-**两端对等而不是主从。** 见上面「架构」一节。代价是两端各要实现一套会话层；
-换来的是多装置、多端这些方向不需要重新设计。
-
-**SDK 零依赖、能整段复制进单文件 HTML。** 创作者的作品大多是 AI 生成的一个 HTML 文件。
-任何构建步骤、任何 `npm install` 都会在那一步断掉。所以 `sdk/argx.js` 是一个文件、
-原生 JS、`<script src>` 直接用。
-
-**降级优于报错。** 没有硬件、连接失败、`file://` 环境——**静默成功**，
-cue 打到 console 里，剧情继续走。绝不抛错、绝不弹窗、绝不阻塞剧情。
-装置只负责演，剧情判定一行都不许依赖它。
-
-**能力是注册式的。** 加一路新输出不需要改协议，只需要在设备端注册一个能力 id
-（形如 `light.main`）并声明参数。协议里没有 `switch(id)`，也没有一张写死的功能表。
-
-**只发语义 cue，绝不下发引脚电平。** 网页说「灯调到 40%」，不说「GPIO4 输出 PWM 102」。
-哪个引脚上挂了什么，由设备端决定——这是换一块板子不用改作品的原因。
-
----
-
-## 开发
+## Development
 
 ```bash
-node tests/run.js -v              # 打印每一步收到的帧
-node tests/run.js --scenario=11   # 只跑名字含 11 的场景
+node tests/run.js -v              # print the frames received at each step
+node tests/run.js --scenario=11   # run only scenarios whose name contains "11"
+
+node tools/build-guide.mjs        # regenerate the console's documentation from guide/*.md
+node tools/build-guide.mjs --check  # fail if the generated file and the markdown disagree
 
 cd console
-npm run build                     # 类型检查 + 打包 → dist/（纯静态）
-npm run dev                       # 另开一个终端
-node scripts/smoke.mjs            # 控制台端到端（90 项，无头浏览器 + DevTools 协议）
+npm run build                     # type check + bundle to dist/ (static)
+npm run dev                       # in another terminal
+node scripts/smoke.mjs            # console end to end (97 checks, headless browser over DevTools)
 ```
 
-**改协议的顺序永远是**：先改 `protocol/`，再改 `firmware/` 与 `device/`，最后补 `tests/`。
-两端各有实现，**改一处必须同步另一处**——这一点在两个仓库里都有互相指路的注释。
+**Changing the protocol always follows this order:** `protocol/` first, then `firmware/` and `device/`, then `tests/`. Each end has its own implementation, so **changing one means changing the other** — both repositories carry comments pointing at the counterpart.
 
-**改界面的顺序是**：先看 `design/prototype/*.html`，再看 `design/` 里对应的文档，
-最后才动 `console/` 或 `landing/` 的代码。界面视觉以 `design/` 为准，不由实现者决定。
+**Changing the interface follows this order:** read `design/prototype/*.html`, then the matching document in `design/`, and only then edit `console/` or `landing/`. Appearance is governed by `design/`, not by whoever writes the code.
 
-CI 在每次 push 与 PR 上跑四条闸门与控制台构建，见
-[`.github/workflows/test.yml`](.github/workflows/test.yml)。
+CI runs the gates, the console build and a set of browser checks on every push and pull request — see [`.github/workflows/test.yml`](.github/workflows/test.yml).
 
----
+## Related repositories
 
-## 相关仓库
+- **[`argx-esp32`](https://github.com/ZhengTFB/argx-esp32)** — the ESP32 adapter: hardware-side implementation, wiring diagram, pin table, bill of materials, build and flash instructions, troubleshooting
+- **[`argx-skill`](https://github.com/ZhengTFB/argx-skill)** — the integration skill package for AI assistants
 
-- **[`argx-esp32`](https://github.com/ZhengTFB/argx-esp32)** —— ESP32 适配器：
-  硬件侧实现、接线图、引脚表、元件清单、编译烧录与故障排查
+Files that both sides depend on exist as a copy in each repository (the protocol document, the firmware source, the wiring document). There are no submodules.
 
-两个仓库相互依赖的文件各放一份（协议文档、固件源码、接线文档），不使用 submodule。
-
----
-
-## 许可协议
+## License
 
 MIT © 2026 ZhengTFB
