@@ -12,7 +12,7 @@
 // 注意相对层级：本文件在 console/src/core/，仓库根要走三层。
 // 故意不写 .js 后缀：这样 TS 会认旁边的 virtual_device.d.ts（写了 .js 后缀时
 // TS 只会去找 virtual_device.js.d.ts 这种名字），Vite 那边会自己补上扩展名。
-import '../../../device/virtual_device';
+import * as deviceModule from '../../../device/virtual_device';
 
 export interface DeviceCapState {
   i: number;
@@ -74,8 +74,14 @@ interface DeviceModule {
   DEFAULT_OUTPUTS: string[];
 }
 
-const mod = (globalThis as unknown as { ArgxVirtualDevice?: DeviceModule })
-  .ArgxVirtualDevice;
+/*
+ * 两条路都取一次 —— 与 core/sdk.ts 同一处坑：UMD 在 dev 下自己挂 globalThis，
+ * 打包后却被喂了假的 module/exports，改走 `module.exports = factory()`，
+ * 全局压根不会被赋值。原因与详细说明见 core/sdk.ts 里的注释。
+ */
+const mod =
+  (globalThis as unknown as { ArgxVirtualDevice?: DeviceModule }).ArgxVirtualDevice ??
+  (deviceModule as unknown as { default?: DeviceModule }).default;
 
 if (!mod) {
   throw new Error(

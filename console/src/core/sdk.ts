@@ -12,7 +12,7 @@
  * 所以够用；将来要同时接两台装置，得先给它加个实例化的入口。
  */
 
-import '../../../sdk/argx';
+import * as sdkModule from '../../../sdk/argx';
 
 /** SDK 的传输层契约：收发的是**对象**，序列化与帧定界由传输层负责 */
 export interface ArgxTransport {
@@ -60,7 +60,19 @@ export interface ArgxApi {
   hint(): string;
 }
 
-const api = (globalThis as unknown as { ARGX?: ArgxApi }).ARGX;
+/*
+ * 两条路都取一次，因为 dev 与 build 拿到它的方式**不一样**：
+ *
+ *   dev    Vite 原样服务那个 UMD，它自己跑 `root.ARGX = factory()` → 走 globalThis
+ *   build  打包器把 UMD 当成 CJS，喂给它一个假的 module/exports，
+ *          于是它走 `module.exports = factory()` 那条分支，**根本不碰 globalThis**。
+ *
+ * 只认 globalThis 的话，dev 全绿、构建产物一片白 —— 而且构建产物没人跑过，
+ * 这坑就一直藏着（阶段五部署 Pages 时第一次暴露）。两边都取就没这问题。
+ */
+const api =
+  (globalThis as unknown as { ARGX?: ArgxApi }).ARGX ??
+  (sdkModule as unknown as { default?: ArgxApi }).default;
 
 if (!api) {
   throw new Error(

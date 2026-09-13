@@ -32,7 +32,10 @@ export function Play({ workId, onGo }: { workId: string; onGo: (k: SectionKey) =
     if (!device.hostTransport) { setSrc(null); return; }
     if (published.current === d.sessionNo) return;
     published.current = d.sessionNo;
-    setSrc('../demo/index.html');
+    // './' 而不是 '../'：Demo 就在构建产物里（vite.config.ts 把 demo/ 拷进 dist），
+    // 与控制台同级。写 '../' 只在「控制台正好挂在站点根」时才对，
+    // 挂到子路径（GitHub Pages 的 /argx/console/）会解析到站点根上去 → 404。
+    setSrc('./demo/index.html');
   }, [d.sessionNo, d.kind, d.status]);
 
   if (!work) {

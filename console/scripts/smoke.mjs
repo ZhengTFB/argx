@@ -321,7 +321,7 @@ try {
   }))()`);
   check(after.hash.startsWith('#play:'), `点站内作品进播放页（${after.hash}）`);
   check(after.frames > before, `播放页真的嵌了 iframe（${before} → ${after.frames}）`);
-  check(after.src === '../demo/index.html', `iframe 指向 demo 的真页面（${after.src}）`);
+  check(after.src === './demo/index.html', `iframe 指向 demo 的真页面（${after.src}）`);
 
   // 宿主通道必须在 iframe 设 src 之前就挂好，否则作品会自己去找串口
   const hostOk = await cdp.eval(`typeof window.ARGX_HOST_TRANSPORT === 'object' && window.ARGX_HOST_TRANSPORT !== null`);
