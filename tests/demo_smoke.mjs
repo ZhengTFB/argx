@@ -253,13 +253,30 @@ async function main() {
     check((await cdp.eval(clickByText('再玩一次'))) === 'ok', '点「再玩一次」');
     check(await cdp.eval(watchFor('夜里十一点四十', 2000), true), '回到第一幕');
 
-    // 7. 埋点真的发出去了（模拟模式下打进了 console）
+    // 7. 翻页：第二幕必须有"不靠密码也能往下走"的路
+    //
+    //    这里单独立一节，是因为上面那条主线**盖章不出这个 bug**：
+    //    它是照着密码输的，所以"第二幕只有密码框、剧本却让玩家再往后翻"这件事
+    //    一路绿灯。这一节全程不碰输入框，只点剧本里写明的翻页动作。
+    check((await cdp.eval(clickByText('看扉页'))) === 'ok', '再走一遍：点「看扉页」回到第二幕');
+    check(await cdp.eval(watchFor('三 一 四', 2000), true), '第二幕又出现了');
+
+    const turnBtn = await cdp.eval(`
+      [...document.querySelectorAll('button')].some(b => b.textContent.trim() === '往后翻')`);
+    check(turnBtn, '第二幕有真的翻页动作（「往后翻」）',
+      '剧本写着「再往后翻」，界面上就必须点得到它');
+
+    check((await cdp.eval(clickByText('往后翻'))) === 'ok', '点「往后翻」');
+    check(await cdp.eval(watchFor('第三页第一行写着', 2000), true),
+      '★ 一个字的密码都没输，就翻到了第三页（这次修的 bug）');
+
+    // 8. 埋点真的发出去了（模拟模式下打进了 console）
     const logs = await cdp.eval('window.__logs.join("\\n")');
     check(/\[ARGX\].*(batch|cue):/.test(logs), 'SDK 把 cue 打进了 console（埋点生效）');
     check(/light\.main/.test(logs), '打印里能看到是哪一路输出');
     check(cdp.consoleErrors.length === 0, '整场玩下来页面一次都没抛错', cdp.consoleErrors.join(' / '));
 
-    // 8. file:// 下必须给一句能照着做的话
+    // 9. file:// 下必须给一句能照着做的话
     await cdp.send('Page.navigate', { url: 'file:///' + join(REPO, 'demo', 'index.html').replace(/\\/g, '/') });
     await sleep(1200);
     const hintText = await cdp.eval(`

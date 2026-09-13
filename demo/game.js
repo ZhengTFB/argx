@@ -131,6 +131,15 @@
       }
 
       box.appendChild(button('确认', 'primary', submit));
+
+      // 输入型的幕也要能带出路。扉页那一幕就是：剧本说「再往后翻」，
+      // 那就得真翻得动，不能只有"输对密码"一条路——否则照着提示走的玩家会卡死。
+      (a.options || []).forEach(function (opt) {
+        box.appendChild(button(opt.label, 'primary', function () {
+          play(opt.next);
+        }));
+      });
+
       if (a.hint) {
         var hintBox = null;
         box.appendChild(button('看提示', '', function () {
