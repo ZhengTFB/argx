@@ -8,6 +8,10 @@
  *   1. 这是**设备端**，不是网页端。它跑的是设备侧的会话层与能力层。
  *   2. 仲裁逻辑（优先级、TTL、幂等、看门狗）与固件 argx_node.cpp 逐条对应，
  *      两边行为不一致就是 bug，先改 protocol/PROTOCOL.md 再改这两处。
+ *
+ *      ⚠️ 那份固件现在住在**另一个仓库**：
+ *          https://github.com/ZhengTFB/argx-esp32
+ *      （本仓库的 firmware/ 是同一份源码的拷贝。改的是哪一份都要两处一起改。）
  *   3. 时间是自己推进的（advance），不依赖系统时钟——
  *      否则测「15 秒看门狗」要真等 15 秒。
  *
@@ -360,6 +364,8 @@
     if (!c) return 'unknown_id';
 
     // --- 仲裁（PROTOCOL §10，顺序不可调换）---
+    // 与固件 argx_node.cpp 的 applyCue() 逐条对应（那份在 argx-esp32 仓库）。
+    // 改这个顺序 = 改协议行为，两处一起改。
     if (this._resetting) return 'dropped'; // 1. 复位中
     if (c.hasLastSeq && c.lastSeq === seq) return 'dup'; // 2. 同 id 同 seq 幂等
     if (c.active && c.pri === s.pri && this._sameEffect(c, s)) {

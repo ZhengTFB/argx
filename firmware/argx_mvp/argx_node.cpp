@@ -1,4 +1,10 @@
 // ARGX 会话层实现。见 argx_node.h 顶部的说明与 protocol/PROTOCOL.md。
+//
+// ⚠️ 同一套仲裁规则（优先级 / TTL / 幂等 / 看门狗 / 复位窗口）还有**第二份实现**：
+//    网页侧的虚拟设备 device/virtual_device.js。它住在主仓库：
+//        https://github.com/ZhengTFB/argx
+//    两份行为必须逐条对齐——**改这里必须同步改那边**。
+//    它们在两个仓库里，最容易悄悄漂移；一漂移，协议就不再是「唯一权威」了。
 
 #include "argx_node.h"
 
@@ -630,6 +636,8 @@ const char *ArgxNode::applyCue(const ArgxCueSpec &s, uint32_t now, long seq) {
     return "unknown_id";
 
   // --- 仲裁（PROTOCOL §10，顺序不可调换）---
+  // 与 device/virtual_device.js 的 _applyCue() 逐条对应（那份在主仓库 argx）。
+  // 改这个顺序 = 改协议行为，两处一起改。
   if (_resetting)
     return "dropped";
   if (c->hasLastSeq && c->lastSeq == seq)
