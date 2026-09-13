@@ -99,6 +99,10 @@ argx/
 ├── console/               # 控制台网站（可构建，产物纯静态）
 ├── sdk/                   # 网页 SDK（零依赖，可内联）
 ├── demo/                  # 极简 ARG 示例
+├── tools/                 # 发布工具：Pages 站点组装与校验（site.mjs）
+├── .github/workflows/     # test.yml（四条闸门 + 构建）、pages.yml（部署）
+├── README.md              # 主仓门面（基础设施风）
+├── LICENSE                # MIT
 └── docs/                  # 接线文档等
 ```
 
@@ -193,7 +197,7 @@ node tests/run.js -v              # 额外打印每步收到的帧
 node tests/run.js --scenario=11   # 只跑名字含 "11" 的场景
 node tests/sdk_smoke.js           # SDK 接虚拟设备真跑一遍（23 项）
 node tests/agents_guide.js        # 照着 sdk/AGENTS.md 抄一遍能不能跑（12 项）
-node tests/demo_smoke.mjs         # Demo 端到端，自带静态服务器（26 项）
+node tests/demo_smoke.mjs         # Demo 端到端，自带静态服务器（31 项）
 
 # 控制台（阶段四已按 design/ 重做）
 cd console
@@ -203,12 +207,22 @@ npm run build                     # 类型检查 + 打包 → dist/（纯静态�
 npm run dev                       # 另开一个终端，冒烟要先有 dev server
 node scripts/smoke.mjs            # 控制台端到端（90 项，零依赖，无头 Edge + DevTools 协议）
 
+# 发布：GitHub Pages 站点的组装与校验（在仓库根跑）
+node tools/site.mjs                     # 只组装 → site/
+node tools/site.mjs --serve             # 挂到 http://localhost:4173/argx/ 看
+node tools/site.mjs --check             # 组装 + 起服务 + 无头浏览器扫 404 与异常
+node tools/site.mjs --check-live https://zhengtfb.github.io/argx   # 校验已部署的那一份
+
 # 编译固件（本机没有 g++/clang，C++ 只能靠这条）
 # 路径是作者本机的，你按自己的环境改（arduino-cli 装在哪就用哪）
 CLI=/c/Users/msa/.argx-tools/arduino-cli.exe
 $CLI compile -b esp32:esp32:esp32s3 firmware/argx_mvp    # 目标板 S3
 $CLI compile -b esp32:esp32:esp32   firmware/argx_mvp    # 老款 WROOM-32E
 ```
+
+> ⚠️ **`--check` 跑的是 `dist`，不是 dev server，所以它和那四条闸门不是一回事。**
+> 阶段五就是靠它抓到「构建产物全站白屏」的——那个缺陷 dev 全绿、四条闸门全绿，
+> **一条测试都看不见**。改了 `console/` 里任何东西，跑一遍这个再提交。
 
 首页（`landing/`）**零构建**：双击 `landing/index.html` 就能看，
 或经控制台的 dev server 访问 `http://localhost:5173/landing/`。
@@ -245,6 +259,19 @@ esp32 core 3.3.11 已装好，不需要再 `core install`。
 | `landing/` | 官网首页。**零构建**（原生 HTML/CSS/JS），独立于控制台，不做数据、不做路由 | — |
 | `sdk/` | 网页 SDK，零依赖纯原生 JS + `AGENTS.md`（给 AI 看的集成规范） | 全部第三方作品 |
 | `demo/` | 示例作品。`script.json` 是剧本数据，控制台的 ARG 库也读同一份 | 控制台的播放器 |
+| `tools/` | 发布工具。`site.mjs` 组装 / 预览 / 校验 GitHub Pages 站点 | 两个 workflow |
+| `.github/workflows/` | `test.yml`（四条闸门 + 构建 + 站点组装）、`pages.yml`（部署） | — |
+
+**这个项目现在住在两个仓库里**（阶段五拆的，不用 submodule，相互依赖的文件两边各放一份）：
+
+| 仓库 | 装什么 |
+|---|---|
+| [`argx`](https://github.com/ZhengTFB/argx)（主仓，就是本目录） | 全部：协议、虚拟设备、SDK、控制台、引导页、设计真源、固件 |
+| [`argx-esp32`](https://github.com/ZhengTFB/argx-esp32) | ESP32 硬件侧：`firmware/`、`firmware/WIRING.md`、`protocol/PROTOCOL.md`（**副本**） |
+
+⚠️ **仲裁逻辑在固件与虚拟设备里各有一份实现，拆仓后分居两个仓库。**
+两处代码都加了互指注释——**改一处必须同步另一处**，否则两端行为会悄悄漂移，
+协议就不再是「唯一权威」了。
 
 控制台里几块的分工：
 
@@ -346,6 +373,25 @@ esp32 core 3.3.11 已装好，不需要再 `core install`。
 24. **`ARGX.on` 每个事件类型只能注册一次，退订必须用精确 token**：
     不带处理器的 `off(type)` 会清空整张处理器表，两个组件各订阅一次再各自退订就会互相抹掉。
     所以事件接线只在 `core/device.ts` 的模块初始化里做一次，组件一律不 import `core/sdk`。
+
+25. **UMD + 打包器 = 全局可能压根没被赋值。** `sdk/argx.js` 与
+    `device/virtual_device.js` 的 UMD 开头是
+    `if (typeof module === 'object' && module.exports) … else root.X = factory()`。
+    Rollup 会喂给它一个假的 `module = { exports: {} }`（`exports` 恒真），
+    于是**永远走 CJS 分支，`globalThis.ARGX` 从不被赋值**。
+    dev 下 Vite 原样服务那个文件、它自己挂全局，所以 dev 一直是对的——
+    这个坑只在 `dist` 里存在。现在 `core/sdk.ts` 与 `core/virtualDevice.ts`
+    两条路都取一次（全局优先，取不到退回模块导出）。**别再改回只读全局。**
+
+26. **相对路径的「深度」是有语义的。** `Play.tsx` 里嵌 Demo 写的是 `'./demo/index.html'`，
+    不能写成 `'../demo/index.html'`——后者只在「控制台正好挂在站点根」时才对
+    （开发服务器下两种写法都对，因为根路径不能再往上，所以很容易写错还测不出来）。
+    挂到 `/argx/console/` 时 `../` 会解析到站点根上去 → 404。
+
+27. **所有测试都打 dev server，构建产物没人跑。** 阶段五部署前才发现
+    `console/dist` 在浏览器里全站白屏，而四条闸门 + 控制台冒烟 90 项**全绿**。
+    `npm run build` 零类型错误只证明它能编译。**改了 `console/` 就顺手跑一遍
+    `node tools/site.mjs --check`**（它跑的是 dist）。
 
 ### 决策记录
 

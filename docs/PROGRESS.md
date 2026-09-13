@@ -4,17 +4,27 @@
 
 ## 当前阶段
 
-**阶段五：开源发布与仓库拆分** — 状态：**未开始**
+**阶段五：开源发布与仓库拆分** — 状态：**已完成，待审查**
 
-把已经完成的整个项目从本机搬到 GitHub：建仓 → 部署 GitHub Pages →
-拆两个仓库（`argx` 核心 + `argx-esp32` ESP32 适配器）→ 写两份技术向 README → 完全开源（MIT）。
+已发布，两个仓库都 public：
 
-**本阶段不新增任何功能、不改界面、不动协议。** 只加文件、只加配置。
+| 仓库 | 地址 |
+|---|---|
+| 主仓 `argx` | <https://github.com/ZhengTFB/argx> |
+| 硬件仓 `argx-esp32` | <https://github.com/ZhengTFB/argx-esp32> |
+
+Pages（HTTPS，所以 Web Serial 可用）：
+
+| 页面 | 地址 |
+|---|---|
+| 引导页 | <https://zhengtfb.github.io/argx/> |
+| 控制台 | <https://zhengtfb.github.io/argx/console/> |
 
 任务书：`docs/ARGX-05-开源发布.md`
 
-> **执行顺序（不能跳步）**：先单仓建仓 + 推 + 跑通 Pages 部署 → 再拆仓 → 最后写 README。
-> 拆仓会动目录结构，先部署能避免同时调两个变量。
+> ⚠️ **本阶段发现并修复了一个阶段四遗留的严重缺陷**：`console/dist` 构建产物
+> 在浏览器里**全站白屏**。详见下面「阶段五验收自检」里的说明。
+>
 
 ## 阶段状态表
 
@@ -23,8 +33,8 @@
 | 一 | `docs/ARGX-01-协议与设备端.md` | 已通过（含审查后补的 `batch` / `hold`） |
 | 二 | `docs/ARGX-02-控制台与模拟器.md` | 已通过（界面部分已在阶段四重做） |
 | 三 | `docs/ARGX-03-Demo与SDK.md` | 已通过（产物无界面，全部有效） |
-| 四 | `docs/ARGX-04-界面重做.md` | **已通过**（验收证据见下） |
-| 五 | `docs/ARGX-05-开源发布.md` | **未开始** |
+| 四 | `docs/ARGX-04-界面重做.md` | **已通过**（验收证据见下；但构建产物白屏是阶段四遗留，阶段五已修） |
+| 五 | `docs/ARGX-05-开源发布.md` | **已完成，待审查**（验收证据见下） |
 
 状态取值：未开始 / 进行中 / 待审查 / 已通过
 
@@ -35,6 +45,233 @@
 > `views/basic|views/pro|panels/|simulator/` 无残留；`.tsx` 里无真实 `ARGX` 调用；
 > `ARGX.state(` 只有一处；`git status` 显示 `protocol/` `firmware/` `device/` `sdk/`
 > 四个目录**零命中**（禁区守住）。
+
+---
+
+## 阶段五验收自检
+
+### 9.1 五条硬闸门（发布前基线）
+
+```bash
+node tests/run.js             # 22 场景 / 213 项 → 通过 213，失败 0
+node tests/sdk_smoke.js       # 23 项 → 全部通过
+node tests/agents_guide.js    # 12 项 → 全部通过
+node tests/demo_smoke.mjs     # 31 项 → 通过 31，失败 0
+cd console && npm run build   # ✓ 46 modules；零类型错误
+```
+
+### 9.2 发布验收逐项
+
+| # | 验收项 | 结果 | 证据 |
+|---|---|---|---|
+| 1 | 主仓已 public，能 `git clone` | ✅ | 在 `/tmp/argx-verify-1951/` 这个**干净目录**里 clone 成功，96 个文件 |
+| 2 | 引导页 Pages 可访问 | ✅ | <https://zhengtfb.github.io/argx/> 无头浏览器实测渲染、背景四层在、token 生效 |
+| 3 | 控制台 Pages 可访问 | ✅ | <https://zhengtfb.github.io/argx/console/> 六个栏目 + 播放页**逐个点过**，全部渲染 |
+| 4 | 子路径下资源不 404 | ✅ | 同上走查，Network 层 4xx/5xx **= 0**，`loadingFailed`（除去导航时正常的 ERR_ABORTED）= 0 |
+| 5 | Web Serial 在 Pages 上可用 | ⚠️ | Pages 是 HTTPS（前提成立），`navigator.serial` 存在；**真机连接未验证**——没有硬件，见遗留项 |
+| 6 | CI 全绿 | ✅ | `test` 与 `pages` 两个 workflow 在 main 上最近一次 push 均 success |
+| 7 | `argx-esp32` 已建且 public，能编译 | ✅ | 干净目录里 clone 后 `arduino-cli compile -b esp32:esp32:esp32s3 firmware/argx_mvp` → 24% Flash 通过 |
+| 8 | 两份 README 都写全 | ✅ | 主仓按第 4.1 节十条结构；硬件仓按第 4.2 节十条结构（含 BOM 表、引脚表与选型理由、两个 USB 口、故障排查） |
+| 9 | 敏感信息扫描干净 | ✅ | 见下 |
+| 10 | 两个仓都有 `LICENSE` | ✅ | `gh api repos/.../license` 两边都返回 `spdx_id: MIT` |
+| 11 | 两份 README 互链 | ✅ | 主仓 README「相关仓库」→ argx-esp32；硬件仓 README 多处 → 主仓 |
+| 12 | `argx-esp32` 的 `PROTOCOL.md` 有副本标记 | ✅ | 文件头第一段就是「⚠️ 本文档是副本」+ 主仓链接 + 同步方式 |
+| 13 | 仲裁代码处有互指注释 | ✅ | 固件 `argx_node.cpp` 的 `applyCue()` 与虚拟设备 `virtual_device.js` 的 `_applyCue()` 各有一段，写明对方在哪个仓库、改一处必须同步另一处 |
+| 14 | 五条闸门在干净 clone 里也全绿 | ✅ | 见下（**最重要的一条**） |
+
+### 第 14 条：干净 clone 里的原始结果
+
+```bash
+$ mkdir /tmp/argx-verify-1951 && cd /tmp/argx-verify-1951
+$ git clone https://github.com/ZhengTFB/argx.git && cd argx
+
+$ node tests/run.js          → 22 个场景 / 213 项检查 → 通过 213，失败 0
+$ node tests/sdk_smoke.js    → 全部通过：23 项通过，0 项失败
+$ node tests/agents_guide.js → 全部通过：12 项通过，0 项失败
+$ node tests/demo_smoke.mjs  → 31 项检查 → 通过 31，失败 0
+
+$ cd console && npm install && npm run build
+  ✓ 46 modules transformed；dist/assets/index-*.js 350.49 kB
+
+$ cd .. && node tools/site.mjs --check
+  Pages 站点校验 → 通过 18，失败 0（共 18 项）
+
+$ cd .. && git clone https://github.com/ZhengTFB/argx-esp32.git && cd argx-esp32
+$ arduino-cli compile -b esp32:esp32:esp32s3 firmware/argx_mvp
+  Sketch uses 322969 bytes (24%)；Global variables use 23600 bytes (7%)
+```
+
+**这一条证明的是「别人 clone 下来真的能跑」**——没有依赖作者机器上的任何残留。
+
+### 第 9 条：敏感信息扫描的原始结果
+
+```bash
+# 1. 真凭据形状（ghp_ / github_pat_ / sk- / AKIA / BEGIN PRIVATE KEY / 赋值式密码）
+→ 唯一命中：docs/ARGX-05-开源发布.md:323，那是任务书自己把那串模式写进了示例命令里
+→ 真实凭据：0
+
+# 2. 硬编码个人路径
+./CLAUDE.md:208  CLI=/c/Users/msa/.argx-tools/arduino-cli.exe
+./CLAUDE.md:231  （arduino-cli.exe 放在仓库外）
+./CLAUDE.md:232  （加注：这是作者的机器路径，你按自己的环境改）
+其余命中全在 docs/ARGX-05 里，那是任务书描述的扫描命令本身
+→ 按第 6 节要求处理：**保留真实路径 + 加注**，不换占位符
+
+# 3. WiFi 凭据 / 内网地址 / .env
+→ 无 SSID、无口令；唯一内网地址是 docs/ARGX-02 里举的例子 192.168.1.5:5173
+→ .env 文件：0 个
+```
+
+另外确认：`.git` 无历史包袱（首次 push）、`console/node_modules/` 与 `console/dist/`
+未进版本库、`arduino-cli.exe` 不在仓库里。
+
+---
+
+## 阶段五：发现并修复的阶段四遗留缺陷（**本阶段最重要的一件事**）
+
+### 症状
+
+**`console/dist` 的构建产物在浏览器里全站白屏。**
+
+### 为什么五个测试一个都没抓到
+
+`tests/` 的四条闸门 + `console/scripts/smoke.mjs` **全部打的是 dev server**。
+阶段四验收里的「`npm run build` 零类型错误」只证明它能编译，**不证明它能在浏览器里跑**。
+于是「dev 全绿、dist 白屏」这个状态一直没人看见，直到要部署 Pages。
+
+复现方式（关键：**不带任何子路径**，排除「是不是 Pages 路径错了」）：
+
+```bash
+cd console && npm run build
+# 用任意静态服务器把 console/dist 挂在**根路径**上，浏览器打开
+# → 同样白屏、同样那两条异常。所以与 Pages、与子路径都无关。
+```
+
+### 根因一：UMD 被当成 CJS 打包，全局压根没被赋值
+
+`sdk/argx.js` 与 `device/virtual_device.js` 都是 UMD：
+
+```js
+if (typeof module === 'object' && module.exports) module.exports = factory();
+else root.ARGX = factory();
+```
+
+Rollup 打包时喂给它们一个假的 `module = { exports: {} }`（`exports` 恒真），
+于是走了 **CJS 那条分支**，`globalThis.ARGX` / `globalThis.ArgxVirtualDevice`
+**从来没有被赋值**。而 `core/sdk.ts` 与 `core/virtualDevice.ts` 恰恰只从全局取，
+取到 `undefined` 就 `throw` —— 整个应用连初始化都过不去。
+
+**dev 下 Vite 原样服务那个 UMD**，它自己挂全局，所以 dev 一直是对的。
+
+修法：两条路都取一次（全局优先，取不到就退回模块导出）。改了
+`console/src/core/sdk.ts` 与 `console/src/core/virtualDevice.ts`。
+
+> 试过「只改构建配置」那条路（`build.commonjsOptions.exclude`）——**没用**，
+> 产物字节不变。Vite 8 里包住它的不是那个插件。
+
+### 根因二：播放页的 iframe 指向站点根
+
+`console/src/sections/Play.tsx` 里是 `setSrc('../demo/index.html')`，只在
+「控制台正好挂在站点根」时才对。挂到 `/argx/console/` 会解析成
+`/argx/demo/index.html` → 404，Demo 播放器永远打不开。
+
+改成 `'./demo/index.html'`：dev / dist 根 / 子路径 / `file://` 四种打开方式下都对。
+
+### 顺带修掉的第三处
+
+`console/scripts/smoke.mjs` 里那条断言硬编码了旧路径 `'../demo/index.html'`，
+跟着改。（**不是**为了让 CI 变绿而放宽断言——是它的期望值本身错了。）
+
+### 还改了测试脚本的浏览器查找
+
+`tests/demo_smoke.mjs` 的 `findBrowser()` 写死一条 Windows Edge 绝对路径，
+`console/scripts/lib/browser.mjs` 的 `launch()` 也只取候选列表的第 0 条
+（注释写着「逐个试」，代码没用上列表）。于是这两个脚本**只在作者的机器上能跑**：
+CI（ubuntu）直接 ENOENT，别人的 Mac 同样。改成真的逐个试。
+**断言一条没动**，改的只是「怎么找到一个浏览器」。
+
+---
+
+## 阶段五决策记录
+
+1. **分支从 `master` 改名 `main`**（只在本地改，push 前做的）。仓库配置属于第 11 节
+   「自己定」的范围。
+
+2. **站点拼法：引导页在根、控制台在 `/console/`**，拼装脚本是 `tools/site.mjs`。
+
+   唯一的麻烦：`landing/` 在仓库里是**同级目录**，它按 `../design/tokens.css` 与
+   `../index.html#docs` 写死（dev server 与 `console/dist` 都把它挂在 `/landing/`）。
+   搬到站点根之后深度少了一层，这两处必须改写：
+
+   ```
+   ../design/     → ./design/      （站点根上有 design/）
+   ../index.html  → ./console/     （站点根上的 index.html 是首页自己，不是控制台）
+   ```
+
+   **改动只发生在 `site/` 那份拷贝里，仓库里的 `landing/` 一个字不动。**
+   组装时会断言「首页里没有残留的 `../`」，留一个就报错。
+
+3. **`tools/site.mjs` 有三个子命令**：`--serve`（本地看）、`--check`（本地走查）、
+   `--check-live <网址>`（对着已部署的那一份走查）。三个都自己组装，
+   只有 `--check-live` 跳过组装。
+
+   `--check` 是这一步唯一靠得住的验证方式：控制台是 `base: './'` + hash 路由，
+   子路径下会不会 404 **只有真加载一次才知道**。它在做的过程中抓到了真问题。
+
+4. **加了 `design/favicon.svg`，两处 `<link rel="icon">`。**
+
+   上线后浏览器会去要域名根上的 `/favicon.ico`。项目站点的域名根
+   （`zhengtfb.github.io/`）不归我们管，那一条必然 404 —— 而验收标准里
+   「404 应为 0」是硬指标。声明自己的图标就不再走那条默认探测。
+
+   **本地校验没抓到这条**（本地服务器把非 `/argx` 开头的请求 302 掉了），
+   线上才暴露。所以 `--check-live` 不是重复劳动。
+
+5. **CI 跑四条闸门 + 控制台构建 + 站点组装**，分两个 job。
+   站点组装放进 CI 是为了守住「引导页在根、首页不许残留 `../`」这条不变量。
+
+6. **硬件仓不做 CI。** 它的对等物是「编译通过」，但装 esp32 core 要几分钟且要缓存，
+   而任务书第 5.3 节明确说本阶段不搭完整工程化体系。
+   编译命令写进了硬件仓 README，**人工验证**（验收第 7 条）。
+
+7. **`argx-esp32` 的目录结构与主仓**镜像**：`protocol/PROTOCOL.md` 与
+   `firmware/` 用**同名同构的路径**。好处是两边的固件路径引用、文档里的命令
+   完全一样（`arduino-cli compile -b esp32:esp32:esp32s3 firmware/argx_mvp`），
+   而且 `diff` 两份拷贝时不需要换算路径。
+
+8. **`landing/` 与 `design/prototype/` 的「在 GitHub 上浏览」占位链接**
+   （裸 `https://github.com`）改成仓库地址。**已征得你同意**，两处一起改，
+   保持设计真源与实现一致。只动了 `href`，没动任何样式与结构。
+
+9. **`CLAUDE.md` 里的本机绝对路径保留 + 加注**，按任务书第 6 节的推荐做法
+   （保留真实路径更可信，加一句「你按自己的环境改」）。
+
+10. **两处 `not` 到的东西没动**：`design/` 的原型视觉、`console/src/core/session.ts`
+    的行为、`transports/` 的契约、`tests/` 的断言内容，全都原样。
+
+### 踩到的坑
+
+1. **「五条闸门全绿」不等于「构建产物能用」。** 所有测试都打 dev server，
+   这是本次最大的教训。**建议：把 `node tools/site.mjs --check` 当成第五条闸门跑**
+   （它跑的是 `dist`，不是 dev）。我没把它塞进 CI 是因为它要浏览器，
+   ubuntu runner 上能不能稳定起 Chrome 没验证过——留给你决定。
+
+2. **UMD + 打包器 = 全局可能不被赋值。** Rollup 的 CommonJS 互操作会给 UMD 一个
+   假的 `module`，`exports` 初始为 `{}` 恒真，于是 UMD 永远走 CJS 分支。
+   凡是「副作用导入 + 读 `globalThis`」的写法在打包后都不可靠。
+
+3. **相对路径深度是有语义的。** `'../demo/'` 与 `'./demo/'` 在开发服务器上
+   可能都对（因为根路径不能再往上），但挂到子路径上就只有后者对。
+
+4. **`--check-live` 的 fetch 会误报。** 本机到 Pages CDN 的连接实测会偶尔超时
+   （同一条 URL 用 `curl` 取却是 200）。所以「连不上」和「站点没有这个文件」
+   必须分开记：前者跳过，后者才算失败。假阴性会让这个校验失去意义。
+
+5. **`Network.loadingFailed` 里 `net::ERR_ABORTED` 是正常的**（切栏目时在飞的请求
+   被主动取消）。记进来会让检查项随机变红。
+
+6. **CDN 上 `tokens.css` 要好几秒**。读完 HTML 就立刻读计算样式会拿到空值——
+   那是慢，不是坏。断言前要先等它到位。
 
 ---
 
@@ -683,6 +920,33 @@ node console/scripts/smoke.mjs  # 端到端冒烟（需先 npm run dev）→ 26 
    如果将来不想要，改 `vite.config.ts` 的 `SHARED_DIRS` 里 `design` 的处理方式即可。
 5. **`core/session.ts` 不再被界面使用**，但保留着 —— 它是 SDK 的母本，
    两份要一起改。如果将来确认 SDK 是唯一实现，可以考虑删掉它并让 SDK 成为唯一来源。
+
+### 阶段五之后的遗留与风险
+
+前四阶段的遗留项**全部继续有效**（真机链路从未跑过、双会话心跳是双份、
+十条协议缺陷、`file://` 下 Demo 读不到剧本等等），发布不改变其中任何一条。
+下面是阶段五新增的：
+
+1. **真机链路仍然一次都没跑过。** 验收第 5 条「Web Serial 在 Pages 上可用」只能
+   证明**前提成立**（页面是 HTTPS、`navigator.serial` 存在），
+   「插上真装置能连上」这一条仍然未验证。这是从阶段一就存在、一直被如实记录的风险。
+
+2. **`firmware/` 在两个仓库里各有一份，靠人工同步。** 这是拆仓方案（不用 submodule）
+   的既定代价。缓解手段是两处仲裁代码的互指注释 + `PROTOCOL.md` 副本标记。
+   **真正的解法**是让硬件仓以主仓为上游、定期对比，但那需要 CI，本阶段没做。
+
+3. **硬件仓没有 CI**，编译验证靠人工。要补的话是「装 esp32 core + 编译」一条 workflow。
+
+4. **站点校验（`node tools/site.mjs --check`）不在 CI 里。** 它跑的是 `dist` 而不是
+   dev server，恰好能覆盖本次这类缺陷；没进 CI 只是因为不敢肯定 ubuntu runner 上
+   能稳定起 Chrome。**这是最值得优先补的一件事。**
+
+5. **知识仍然集中在主仓。** `CLAUDE.md`（硬约束、已知坑、决策记录）在 `argx` 仓库里，
+   只改硬件的人看不到。硬件仓 README 已经写明「两侧实现要一起改」，
+   但更完整的背景还在主仓。
+
+6. **`design/` 会被整个拷进 `dist/` 并发布出去**（含原型与六份设计文档）。
+   有意为之，阶段四就记过；发布的站点上对着同一地址能翻设计。
 
 ---
 
