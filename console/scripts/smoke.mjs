@@ -408,8 +408,13 @@ try {
     `[...document.querySelector('#intro').children].map(e => e.className).join('|')`
   );
   check(introKids === 'intro-stage|intro-skip',
-    `开场层里只有三词与跳过按钮，没有别的装饰（实际：${introKids}）`);
-  check(await cdp.eval(`document.querySelectorAll('#intro .intro-word').length`) === 3, '三个词都在');
+    `开场层里只有四拍与跳过按钮，没有别的装饰（实际：${introKids}）`);
+  check(await cdp.eval(`document.querySelectorAll('#intro .intro-word').length`) === 4, '四拍都在');
+  check(
+    (await cdp.eval(`[...document.querySelectorAll('#intro .intro-word')].map(e => e.textContent).join('/')`))
+      === '更沉浸/更方便/更易扩展/ARGX',
+    '四拍依次是 更沉浸 / 更方便 / 更易扩展 / ARGX 字标'
+  );
   check(
     (await cdp.eval(`getComputedStyle(document.querySelector('.page-shell')).visibility`)) === 'hidden',
     '开场期间页面主体不可见'
@@ -466,6 +471,43 @@ try {
     (await cdp.eval(`document.querySelectorAll('a[href*="github"]').length`)) >= 2,
     '页底有 GitHub 按钮'
   );
+
+  // 价值三卡（件六把原来的技术三卡换成了「三种人，三种用法」）
+  const cardNums = await cdp.eval(
+    `[...document.querySelectorAll('#capabilities .fcard .num')].map(e => e.textContent.trim()).join('|')`
+  );
+  check(cardNums === '01 / PLAYERS|02 / CREATORS|03 / MAKERS',
+    `价值三卡齐全（实际：${cardNums}）`);
+
+  // 仓库区：三张等大卡片 + 三个真的能点开的仓库地址
+  const repoState = await cdp.eval(`(() => {
+    const sec = document.querySelector('#repos');
+    if (!sec) return { n: 0, links: [], cols: 0 };
+    const cards = [...sec.querySelectorAll('.rcard')];
+    const cols = getComputedStyle(sec.querySelector('.cards3')).gridTemplateColumns.split(' ').length;
+    return {
+      n: cards.length,
+      cols,
+      names: cards.map(c => c.querySelector('.repo-name').textContent.trim()),
+      links: cards.map(c => c.querySelector('a').getAttribute('href'))
+    };
+  })()`);
+  check(repoState.n === 3, `仓库区有三张卡片（实际 ${repoState.n}）`);
+  check(repoState.cols === 3, `三张卡片等大并列（实际 ${repoState.cols} 列）`);
+  check(
+    repoState.names.join('|') === 'argx|argx-esp32|argx-skill',
+    `仓库依次是 argx / argx-esp32 / argx-skill（实际：${repoState.names.join(' / ')}）`
+  );
+  check(
+    repoState.links.every((h) => h && h.startsWith('https://github.com/ZhengTFB/')),
+    `三张卡片指向真实仓库地址（实际：${repoState.links.join(' ')}）`
+  );
+
+  // AI 接入入口：hero 按钮、我是开发者卡、页脚各一处，且都指向 #docs:ai-skill
+  const aiHrefs = await cdp.eval(
+    `[...document.querySelectorAll('a[href*="#docs:ai-skill"]')].length`
+  );
+  check(aiHrefs >= 3, `AI 接入入口至少三处（hero / 开发者卡 / 页脚，实际 ${aiHrefs}）`);
   const landingOverflow = await cdp.eval(
     `document.documentElement.scrollWidth - document.documentElement.clientWidth`
   );

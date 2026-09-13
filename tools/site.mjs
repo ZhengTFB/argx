@@ -194,7 +194,7 @@ async function check(origin) {
   try {
     section('1. 引导页（站点根 /argx/）');
     await cdp.send('Page.navigate', { url: origin + '/' });
-    const landed = await cdp.waitForText('把网页变成', 15000);
+    const landed = await cdp.waitForText('把你的房间变成', 15000);
     ck(landed, '首页渲染出来了');
 
     // token 是从 ../design/ 改写成 ./design/ 之后加载的，取到值即证明改写对。

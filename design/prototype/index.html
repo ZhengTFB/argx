@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ARGX — 把网页变成一间会呼吸的房间</title>
+<title>ARGX — 把你的房间变成密室</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -131,7 +131,7 @@ button{font-family:inherit;background:none;border:none;cursor:pointer;color:inhe
   cursor:pointer;
 }
 #intro.done{opacity:0;visibility:hidden;pointer-events:none}
-/* 开场期间：除三词与跳过按钮外，层内所有装饰一律不显示 */
+/* 开场期间：除四拍与跳过按钮外，层内所有装饰一律不显示 */
 #intro:not(.lit) .intro-grid,
 #intro:not(.lit)::before,
 #intro:not(.lit)::after{opacity:0 !important;animation:none !important}
@@ -478,6 +478,15 @@ body.ready .page-shell{visibility:visible}
   margin-bottom:var(--space-5);display:grid;place-items:center;overflow:hidden;position:relative;
 }
 .fcard h3{font-size:17px;font-weight:600;letter-spacing:-.012em;margin-bottom:var(--space-3)}
+/* 仓库卡：与 .fcard 共用同一套底，换成「仓库名 + 要点 + 按钮」 */
+.rcard{display:flex;flex-direction:column}
+.rcard .repo-name{font-family:var(--font-mono);font-size:var(--text-lg);font-weight:600;letter-spacing:-.01em;color:var(--text-primary);margin-bottom:var(--space-2)}
+.rcard .repo-line{font-size:var(--text-base);line-height:1.6;color:var(--text-secondary);margin-bottom:var(--space-5)}
+.rcard .repo-points{list-style:none;margin:0 0 var(--space-8);padding:0;display:grid;gap:var(--space-2)}
+.rcard .repo-points li{position:relative;padding-left:var(--space-4);font-size:var(--text-sm);line-height:1.5;color:var(--text-tertiary)}
+.rcard .repo-points li::before{content:"";position:absolute;left:3px;top:.62em;width:4px;height:4px;border-radius:50%;background:var(--border-strong)}
+.rcard .btn{align-self:flex-start;margin-top:auto}
+.repo-foot{margin-top:var(--space-6);text-align:center;font-size:var(--text-sm);color:var(--text-tertiary)}
 .fcard p{font-size:14px;line-height:1.62;color:var(--text-secondary)}
 
 /* 双入口 */
@@ -574,8 +583,9 @@ body.ready .page-shell{visibility:visible}
   <div class="intro-grid" aria-hidden="true"></div>
   <div class="intro-stage" aria-live="polite">
     <div class="intro-word" data-i="0"><span class="ch">更</span><span class="ch">沉</span><span class="ch">浸</span></div>
-    <div class="intro-word" data-i="1"><span class="ch">更</span><span class="ch">恐</span><span class="ch">怖</span></div>
-    <div class="intro-word" data-i="2"><span class="ch">更</span><span class="ch">方</span><span class="ch">便</span></div>
+    <div class="intro-word" data-i="1"><span class="ch">更</span><span class="ch">方</span><span class="ch">便</span></div>
+    <div class="intro-word" data-i="2"><span class="ch">更</span><span class="ch">易</span><span class="ch">扩</span><span class="ch">展</span></div>
+    <div class="intro-word" data-i="3"><span class="ch">A</span><span class="ch">R</span><span class="ch">G</span><span class="ch">X</span></div>
   </div>
   <button class="intro-skip" id="introSkip">跳过 <kbd>ESC</kbd></button>
 </div>
@@ -591,6 +601,7 @@ body.ready .page-shell{visibility:visible}
     </div>
     <div class="nav-center">
       <button class="nav-link">产品</button>
+      <button class="nav-link">仓库</button>
       <button class="nav-link">文档</button>
       <button class="nav-link">ARG 库</button>
     </div>
@@ -604,7 +615,7 @@ body.ready .page-shell{visibility:visible}
     <div class="hero-grid">
 
       <div class="hero-left">
-        <h1 class="reveal">把网页变成<em>一间会呼吸的房间</em></h1>
+        <h1 class="reveal">把你的房间变成<em>密室</em></h1>
 
         <div class="hero-body">
           <p class="hero-lead reveal">
@@ -620,6 +631,7 @@ body.ready .page-shell{visibility:visible}
         <div class="hero-cta">
           <div class="hero-cta-row reveal">
             <a href="console.html" class="btn btn--lg btn--primary">进入控制台 <span class="arrow">→</span></a>
+            <a href="console.html#docs:ai-skill" class="btn btn--lg btn--ghost">AI 接入</a>
             <a href="console.html#docs" class="btn btn--lg btn--ghost">查看文档</a>
           </div>
           <div class="hero-cta-row reveal">
@@ -685,31 +697,15 @@ body.ready .page-shell{visibility:visible}
     </div>
   </header>
 
-  <!-- ========== 能力三卡 ========== -->
+  <!-- ========== 价值三卡 ========== -->
   <section class="section">
     <div class="section-inner">
-      <div class="section-tag reveal">CAPABILITIES</div>
-      <h2 class="reveal">四路输出，<span class="dim">连续与开关并存。</span></h2>
+      <div class="section-tag reveal">WHY ARGX</div>
+      <h2 class="reveal">三种人，<span class="dim">三种用法。</span></h2>
 
       <div class="cards3">
         <div class="fcard reveal">
-          <div class="num">01 / CUE</div>
-          <div class="glyph">
-            <svg width="150" height="64" viewBox="0 0 150 64" fill="none">
-              <path d="M6 32h30" stroke="#33373E" stroke-width="1.5"/>
-              <rect x="40" y="18" width="42" height="28" rx="6" stroke="#5B8DEF" stroke-width="1.5" fill="rgba(91,141,239,.10)"/>
-              <rect x="52" y="27" width="18" height="10" rx="3" stroke="#5B8DEF" stroke-width="1.2"/>
-              <path d="M86 32h30" stroke="#33373E" stroke-width="1.5"/>
-              <circle cx="120" cy="32" r="5" fill="#0E9F6E"/>
-              <circle cx="120" cy="32" r="9" stroke="#0E9F6E" stroke-opacity=".28" stroke-width="1.5"/>
-            </svg>
-          </div>
-          <h3>游戏翻页，发一次 cue</h3>
-          <p>节奏由你的游戏控制。翻到哪一页，就发一次指令，灯和声音跟着变。</p>
-        </div>
-
-        <div class="fcard reveal">
-          <div class="num">02 / 4-CHANNEL</div>
+          <div class="num">01 / PLAYERS</div>
           <div class="glyph">
             <svg width="150" height="64" viewBox="0 0 150 64" fill="none">
               <g stroke-width="1.5" stroke-linejoin="round" fill="none">
@@ -721,12 +717,12 @@ body.ready .page-shell{visibility:visible}
               <circle cx="118" cy="30" r="2.5" fill="#0E9F6E"/>
             </svg>
           </div>
-          <h3>连续量配时长，开关量只有两态</h3>
-          <p>灯、声、振是强度加持续时间；继电器只有开与关。区别在界面上直接可见。</p>
+          <h3>房间跟着故事动</h3>
+          <p>灯、声音、振动、继电器四路一起演。玩家每做成一件事，房间就跟着变一次。</p>
         </div>
 
         <div class="fcard reveal">
-          <div class="num">03 / SDK</div>
+          <div class="num">02 / CREATORS</div>
           <div class="glyph">
             <svg width="150" height="64" viewBox="0 0 150 64" fill="none">
               <rect x="16" y="14" width="52" height="36" rx="7" stroke="#33373E" stroke-width="1.5"/>
@@ -737,10 +733,73 @@ body.ready .page-shell{visibility:visible}
               <circle cx="77" cy="32" r="3" fill="#8B5CF6"/>
             </svg>
           </div>
-          <h3>插进你已经做好的网页</h3>
-          <p>一份 SDK，不用重做游戏。接入、配置、测试、展示，都在控制台完成。</p>
+          <h3>一行代码接进已有网页</h3>
+          <p>零依赖的单文件 SDK，整段复制进你现在的作品。不用重做游戏，也不用构建工具。</p>
+        </div>
+
+        <div class="fcard reveal">
+          <div class="num">03 / MAKERS</div>
+          <div class="glyph">
+            <svg width="150" height="64" viewBox="0 0 150 64" fill="none">
+              <path d="M6 32h30" stroke="#33373E" stroke-width="1.5"/>
+              <rect x="40" y="18" width="42" height="28" rx="6" stroke="#5B8DEF" stroke-width="1.5" fill="rgba(91,141,239,.10)"/>
+              <rect x="52" y="27" width="18" height="10" rx="3" stroke="#5B8DEF" stroke-width="1.2"/>
+              <path d="M86 32h30" stroke="#33373E" stroke-width="1.5"/>
+              <circle cx="120" cy="32" r="5" fill="#0E9F6E"/>
+              <circle cx="120" cy="32" r="9" stroke="#0E9F6E" stroke-opacity=".28" stroke-width="1.5"/>
+            </svg>
+          </div>
+          <h3>加一路能力不用改协议</h3>
+          <p>能力表是注册式的，自己做的装置挂上去就能用。网页端与装置端都从同一份协议派生。</p>
         </div>
       </div>
+  </section>
+
+  <!-- ========== 仓库区 ========== -->
+  <section class="section" id="repos">
+    <div class="section-inner">
+      <div class="section-tag reveal">REPOSITORIES</div>
+      <h2 class="reveal">三个仓库，<span class="dim">各自装什么。</span></h2>
+
+      <div class="cards3">
+        <div class="fcard rcard reveal">
+          <div class="repo-name">argx</div>
+          <p class="repo-line">网页 ↔ 协议 ↔ 装置的全部实现</p>
+          <ul class="repo-points">
+            <li>协议规范</li>
+            <li>零依赖 SDK</li>
+            <li>控制台与模拟器</li>
+            <li>引导页与设计真源</li>
+          </ul>
+          <a href="https://github.com/ZhengTFB/argx" class="btn btn--md btn--primary">查看仓库 <span class="arrow">→</span></a>
+        </div>
+
+        <div class="fcard rcard reveal">
+          <div class="repo-name">argx-esp32</div>
+          <p class="repo-line">把 ARGX 跑在实体装置上</p>
+          <ul class="repo-points">
+            <li>接线图与引脚表</li>
+            <li>编译与烧录</li>
+            <li>调试与排障</li>
+            <li>固件实现到什么程度</li>
+          </ul>
+          <a href="https://github.com/ZhengTFB/argx-esp32" class="btn btn--md btn--primary">查看仓库 <span class="arrow">→</span></a>
+        </div>
+
+        <div class="fcard rcard reveal">
+          <div class="repo-name">argx-skill</div>
+          <p class="repo-line">把 ARGX 接进已有网页的技能包</p>
+          <ul class="repo-points">
+            <li>五步接入流程</li>
+            <li>三段提示词</li>
+            <li>十项检验清单</li>
+            <li>自包含的协议与 API 参考</li>
+          </ul>
+          <a href="https://github.com/ZhengTFB/argx-skill" class="btn btn--md btn--primary">查看仓库 <span class="arrow">→</span></a>
+        </div>
+      </div>
+
+      <p class="repo-foot reveal">三个仓库都是 MIT 许可，完全开源。</p>
     </div>
   </section>
 
@@ -751,8 +810,8 @@ body.ready .page-shell{visibility:visible}
         <div class="gate reveal">
           <div class="g-no">FOR DEVELOPERS</div>
           <h3>我是开发者</h3>
-          <p class="desc">接入 SDK · 查看协议 · 调参数</p>
-          <a href="console.html#docs" class="btn btn--lg btn--ghost">进入文档 <span class="arrow">→</span></a>
+          <p class="desc">让 AI 接入 · 查看协议 · 调参数</p>
+          <a href="console.html#docs:ai-skill" class="btn btn--lg btn--ghost">AI 接入 <span class="arrow">→</span></a>
         </div>
         <div class="gate reveal">
           <div class="g-no">FOR PLAYERS</div>
@@ -775,7 +834,7 @@ body.ready .page-shell{visibility:visible}
       在 GitHub 上浏览
     </a>
     <div class="footer-links">
-      <a href="#">文档</a><a href="#">协议</a><a href="#">状态</a>
+      <a href="#">文档</a><a href="#">AI-Skill</a><a href="#">协议</a><a href="#">状态</a>
     </div>
     <div class="footer-note">© 2026 ARGX</div>
   </footer>
@@ -788,7 +847,7 @@ const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
 
 /* ============================================================
-   开场动画：首访播放 · 三词居中依次替换 · 可跳过
+   开场动画：首访播放 · 四拍居中依次替换 · 可跳过
    关键：判定与揭屏在「首帧内同步执行」，不依赖任何异步事件，
         保证非首访时页面元素一定可见
    ============================================================ */
@@ -834,7 +893,7 @@ const SEEN_KEY = 'argx.intro.seen';
     }, 680);
   }
 
-  // 三词在正中央依次替换：整词每 1050ms 上一个，词内逐字错峰 105ms
+  // 四拍在正中央依次替换：整拍每 1050ms 上一个，拍内逐字错峰 105ms
   const WORD_GAP = 1050;
   const WORD_LEAD = 420;
   const CHAR_GAP = 105;

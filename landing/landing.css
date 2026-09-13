@@ -464,6 +464,29 @@ body.ready .page-shell { visibility: visible }
 .fcard h3 { font-size: 17px; font-weight: 600; letter-spacing: -.012em; margin-bottom: var(--space-3) }
 .fcard p { font-size: var(--text-base); line-height: 1.62; color: var(--text-secondary) }
 
+/* ---- 仓库卡：与 .fcard 共用同一套底，换成「仓库名 + 要点 + 按钮」 ---- */
+.rcard { display: flex; flex-direction: column }
+.rcard .repo-name {
+  font-family: var(--font-mono); font-size: var(--text-lg); font-weight: 600;
+  letter-spacing: -.01em; color: var(--text-primary);
+  margin-bottom: var(--space-2);
+}
+.rcard .repo-line { font-size: var(--text-base); line-height: 1.6; color: var(--text-secondary); margin-bottom: var(--space-5) }
+.rcard .repo-points {
+  list-style: none; margin: 0 0 var(--space-8); padding: 0;
+  display: grid; gap: var(--space-2);
+}
+.rcard .repo-points li {
+  position: relative; padding-left: var(--space-4);
+  font-size: var(--text-sm); line-height: 1.5; color: var(--text-tertiary);
+}
+.rcard .repo-points li::before {
+  content: ""; position: absolute; left: 3px; top: .62em;
+  width: 4px; height: 4px; border-radius: 50%; background: var(--border-strong);
+}
+.rcard .btn { align-self: flex-start; margin-top: auto }
+.repo-foot { margin-top: var(--space-6); text-align: center; font-size: var(--text-sm); color: var(--text-tertiary) }
+
 /* ---- 双入口大按钮 ---- */
 .gates { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-5) }
 .gate {
