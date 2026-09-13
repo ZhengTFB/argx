@@ -1,0 +1,17 @@
+<!--
+  站点图标。跟引导页顶栏那个 brand-mark 是同一个形：转 45° 的圆角方块里一个 A。
+  放 design/ 下是因为它要同时被两处取到：
+    站点根       /argx/design/favicon.svg
+    控制台下     /argx/console/design/favicon.svg
+  不声明它的话浏览器会去要域名根上的 /favicon.ico，而项目站点的域名根
+  不归我们管，那一条必然 404（ARGX-05 第 9.2 节要求 404 为 0）。
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="ARGX">
+  <rect width="64" height="64" rx="14" fill="#0A0B0D"/>
+  <g transform="rotate(45 32 32)">
+    <rect x="17" y="17" width="30" height="30" rx="8" fill="none" stroke="#3B7BF0" stroke-width="3"/>
+  </g>
+  <text x="32" y="32" text-anchor="middle" dominant-baseline="central"
+        font-family="system-ui, 'Segoe UI', sans-serif" font-size="25" font-weight="800"
+        fill="#FFFFFF">A</text>
+</svg>

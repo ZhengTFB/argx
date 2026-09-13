@@ -134,15 +134,37 @@ function serve(port) {
 }
 
 /**
+ * 用普通 HTTP 客户端直接取一个文件，证明「不是只有浏览器才拿得到」。
+ *
+ * 线上这几条要过 CDN。实测本机到 Pages CDN 的连接会偶尔超时（同一条 URL
+ * 用 curl 取却是 200），所以重试三次 —— 这条要是红了，得是真的红了才有意义。
+ */
+async function probe(url) {
+  let detail = '';
+  for (let i = 0; i < 3; i++) {
+    try {
+      const r = await fetch(url);
+      // 拿到了 HTTP 应答：好就是好，坏就是站点真的没有这个文件
+      return r.ok ? { ok: true, detail: `${r.status}` } : { ok: false, detail: `${r.status}` };
+    } catch (e) {
+      detail = e.message;
+    }
+    await new Promise((ok) => setTimeout(ok, 500));
+  }
+  // 一次都没连上 —— 这是本机网络的问题，不是站点的问题。
+  // 记成失败会变成假阴性，而假阴性会让这个校验失去意义。
+  return { ok: null, detail };
+}
+
+/**
  * 无头浏览器把站点真的走一遍，收集所有 4xx / 5xx。
  *
  * 这一条不能靠推理：控制台是 `base: './'` + hash 路由，子路径下资源会不会 404
  * 只有真加载一次才知道。验收标准里「Network 面板筛选 404，应为 0」就是它。
  */
-async function check(port) {
+async function check(origin) {
   const { launch, sleep, makeChecker } = await import('../console/scripts/lib/browser.mjs');
   const { check: ck, section, summary } = makeChecker();
-  const origin = `http://localhost:${port}${BASE}`;
 
   const { cdp, close } = await launch({ port: 9333, url: origin + '/', windowSize: '1440,900' });
 
@@ -157,6 +179,9 @@ async function check(port) {
         bad.push(`${response.status} ${response.url}`);
       }
     } else if (msg.method === 'Network.loadingFailed') {
+      // 切栏目 / 换页面时在飞的请求会被主动取消，那是正常的，
+      // 记进来的话这一条就会随机变红（假阴性比漏报更坏：没人再信它）
+      if (msg.params.errorText === 'net::ERR_ABORTED') return;
       const k = 'FAIL ' + msg.params.errorText;
       if (!seen.has(k)) {
         seen.add(k);
@@ -171,7 +196,14 @@ async function check(port) {
     await cdp.send('Page.navigate', { url: origin + '/' });
     const landed = await cdp.waitForText('把网页变成', 15000);
     ck(landed, '首页渲染出来了');
-    // token 是从 ../design/ 改写成 ./design/ 之后加载的，落地即证明改写对
+
+    // token 是从 ../design/ 改写成 ./design/ 之后加载的，取到值即证明改写对。
+    // 必须**等**它到位：Pages 的 CDN 上 tokens.css 实测要好几秒，
+    // 读完 HTML 就立刻读计算样式会拿到空值（那是慢，不是坏）。
+    await cdp.waitFor(
+      `getComputedStyle(document.documentElement).getPropertyValue('--bg-app').trim().length > 0`,
+      20000
+    );
     const bg = await cdp.eval(
       `getComputedStyle(document.documentElement).getPropertyValue('--bg-app').trim()`
     );
@@ -212,8 +244,12 @@ async function check(port) {
       '/console/design/tokens.css',
       '/design/tokens.css'
     ]) {
-      const r = await fetch(origin + rel);
-      ck(r.ok, `${rel} → ${r.status}`);
+      const p = await probe(origin + rel);
+      if (p.ok === null) {
+        console.log(`  … ${rel} 本机连不上 CDN，跳过（第 4 节用的是真浏览器，那边更能说明问题）`);
+      } else {
+        ck(p.ok, `${rel} → ${p.detail}`);
+      }
     }
 
     section('4. 没有 404 / 加载失败');
@@ -230,23 +266,37 @@ async function check(port) {
 
 /* ---------------- CLI ---------------- */
 const args = process.argv.slice(2);
+const urlArg = args.find((a) => /^https?:\/\//.test(a));
 const portArg = args.find((a) => /^\d+$/.test(a));
 const port = portArg ? Number(portArg) : 4173;
 
-assemble();
-
-if (args.includes('--check')) {
-  const server = await serve(port);
-  console.log(`\n站点挂在 http://localhost:${port}${BASE}/ （Ctrl-C 退出）\n`);
-  const pass = await check(port);
-  await new Promise((ok) => server.close(ok));
-  // 浏览器子进程刚被 kill，Windows 上立刻 exit 会撞出一句 libuv 断言噪音。
-  // 等一下把句柄放干净，退出码才是干净的。
+/** 浏览器子进程刚被 kill，Windows 上立刻 exit 会撞出一句 libuv 断言噪音 */
+async function exitClean(code) {
   await new Promise((ok) => setTimeout(ok, 300));
-  process.exit(pass ? 0 : 1);
-} else if (args.includes('--serve')) {
-  await serve(port);
-  console.log(`\n站点挂在 http://localhost:${port}${BASE}/ （Ctrl-C 退出）`);
+  process.exit(code);
+}
+
+if (args.includes('--check-live')) {
+  // 校验已经部署上去的那一份，本地不组装、不起服务
+  if (!urlArg) {
+    console.error('--check-live 要给网址，例如：node tools/site.mjs --check-live https://zhengtfb.github.io/argx');
+    process.exit(2);
+  }
+  await exitClean((await check(urlArg.replace(/\/+$/, ''))) ? 0 : 1);
 } else {
-  console.log('（只组装。挂起来看用 --serve，发布前校验用 --check）');
+  assemble();
+
+  if (args.includes('--check')) {
+    const server = await serve(port);
+    const local = `http://localhost:${port}${BASE}`;
+    console.log(`\n站点挂在 ${local}/ （Ctrl-C 退出）\n`);
+    const pass = await check(local);
+    await new Promise((ok) => server.close(ok));
+    await exitClean(pass ? 0 : 1);
+  } else if (args.includes('--serve')) {
+    await serve(port);
+    console.log(`\n站点挂在 http://localhost:${port}${BASE}/ （Ctrl-C 退出）`);
+  } else {
+    console.log('（只组装。挂起来看用 --serve，本地校验用 --check，线上校验用 --check-live <网址>）');
+  }
 }
