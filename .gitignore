@@ -2,6 +2,7 @@
 node_modules/
 console/dist/
 .vite/
+site/            # tools/site.mjs 拼出来的 Pages 站点（每次重新生成）
 
 # 编辑器与系统
 .DS_Store

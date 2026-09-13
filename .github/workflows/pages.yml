@@ -1,0 +1,65 @@
+name: pages
+
+# 部署到 GitHub Pages。
+#
+# 站点不是现成的任何一个目录，而是两件东西拼出来的：
+#   站点根        ← landing/       （引导页）
+#   /console/    ← console/dist/  （控制台，`base: './'`）
+# 拼法在 tools/site.mjs 里，本地跑 `node tools/site.mjs --check` 能先验一遍。
+#
+# 为什么走 Actions 而不是推一个 gh-pages 分支：控制台要现构建，
+# 构建产物不该进仓库。
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# 同一时刻只跑一个部署；新的 push 直接取消排队中的旧的
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: 构建站点
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: console/package-lock.json
+
+      - uses: actions/configure-pages@v5
+
+      - name: 构建控制台
+        working-directory: console
+        run: |
+          npm ci
+          npm run build
+
+      - name: 组装站点（引导页在根 + 控制台在 /console/）
+        run: node tools/site.mjs
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+  deploy:
+    name: 部署
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

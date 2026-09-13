@@ -1,0 +1,66 @@
+name: test
+
+# 每次 push 与 PR 都跑一遍。这是开源仓库的基本门槛：
+# 别人 fork 之后看到的第一件事就是这几个绿灯是不是真的。
+#
+# 四条闸门都是零依赖的纯 Node 脚本，不需要装任何东西——这是刻意的，
+# 它们同时也是「照 README 能不能跑起来」的证明。
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  protocol:
+    name: 协议 / SDK / Demo
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      # 阶段一：协议一致性。虚拟设备与固件的仲裁逻辑靠它钉住
+      - name: 协议一致性（22 场景 / 213 项）
+        run: node tests/run.js
+
+      # 阶段三：SDK 接真的虚拟设备跑一遍
+      - name: SDK 冒烟（23 项）
+        run: node tests/sdk_smoke.js
+
+      # 把 sdk/AGENTS.md 里那段「三十秒接入」原样抓出来执行
+      - name: 照 AGENTS.md 抄一遍（12 项）
+        run: node tests/agents_guide.js
+
+      # 阶段三：Demo 端到端，自带静态服务器
+      - name: Demo 端到端（31 项）
+        run: node tests/demo_smoke.mjs
+
+  console:
+    name: 控制台构建
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: console
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: console/package-lock.json
+
+      - run: npm ci
+
+      # tsc --noEmit && vite build
+      - name: 类型检查 + 打包
+        run: npm run build
+
+      # 打包产物是纯静态的，sub-path 下能不能用由 tools/site.mjs 的断言守着
+      #（引导页在根、控制台在 /console/，首页里不许残留 ../ 相对路径）
+      - name: 组装 GitHub Pages 站点
+        working-directory: .
+        run: node tools/site.mjs

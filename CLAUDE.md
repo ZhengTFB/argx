@@ -204,6 +204,7 @@ npm run dev                       # 另开一个终端，冒烟要先有 dev ser
 node scripts/smoke.mjs            # 控制台端到端（90 项，零依赖，无头 Edge + DevTools 协议）
 
 # 编译固件（本机没有 g++/clang，C++ 只能靠这条）
+# 路径是作者本机的，你按自己的环境改（arduino-cli 装在哪就用哪）
 CLI=/c/Users/msa/.argx-tools/arduino-cli.exe
 $CLI compile -b esp32:esp32:esp32s3 firmware/argx_mvp    # 目标板 S3
 $CLI compile -b esp32:esp32:esp32   firmware/argx_mvp    # 老款 WROOM-32E
@@ -228,6 +229,7 @@ $CLI compile -b esp32:esp32:esp32   firmware/argx_mvp    # 老款 WROOM-32E
 > `scripts/smoke-basic.mjs` 与旧的 `scripts/smoke.mjs` 已在阶段四**删除并重写**成一个。
 
 `arduino-cli.exe` 故意放在仓库外（`C:\Users\msa\.argx-tools\`），不要提交进仓库。
+（`C:\Users\msa\` 是作者的机器路径，不是仓库的一部分——你按自己的环境改。）
 esp32 core 3.3.11 已装好，不需要再 `core install`。
 
 ### 目录职责约定
