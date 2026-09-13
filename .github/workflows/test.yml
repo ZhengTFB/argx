@@ -64,3 +64,46 @@ jobs:
       - name: 组装 GitHub Pages 站点
         working-directory: .
         run: node tools/site.mjs
+
+  e2e:
+    name: 浏览器类检查
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: console/package-lock.json
+
+      - name: 装依赖
+        working-directory: console
+        run: npm ci
+
+      - name: 构建
+        working-directory: console
+        run: npm run build
+
+      # ★ 这一条跑的是 dist，不是 dev server。
+      #   阶段五那次「构建产物全站白屏」就是它抓到的 —— 四条闸门与控制台冒烟
+      #   全都打 dev server，一个都看不见那个缺陷。别再把它删了。
+      - name: 站点校验（拼站点 + 起服务 + 无头浏览器扫 404）
+        run: node tools/site.mjs --check
+
+      # 界面结构冒烟，跑的是 dev server，所以要先把 dev server 起起来。
+      # --strictPort：端口被占就直接失败，别让 Vite 悄悄换到 5174
+      #（那样这个 job 会对着一个空端口跑出一片假绿）
+      - name: 起 dev server
+        working-directory: console
+        run: |
+          npm run dev -- --port 5173 --strictPort > /tmp/vite.log 2>&1 &
+          for i in $(seq 1 60); do
+            curl -sf http://localhost:5173/ > /dev/null && exit 0
+            sleep 1
+          done
+          echo "dev server 60 秒内没起来："; cat /tmp/vite.log; exit 1
+
+      - name: 控制台冒烟（90 项）
+        working-directory: console
+        run: node scripts/smoke.mjs http://localhost:5173/

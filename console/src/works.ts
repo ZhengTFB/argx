@@ -53,7 +53,7 @@ export const WORKS: Work[] = [
     title: '深夜自习室',
     author: 'ARGX 示例',
     summary:
-      '你在自习室捡到一本不属于任何人的笔记。翻到第三页时，桌上的灯会自己暗下去。',
+      '你在自习室捡到一本不属于任何人的笔记。翻到第三页时，桌上的灯会猛地亮起来。',
     needs: ['light.main', 'sound.beeper'],
     optional: ['motion.vibrate', 'env.relay'],
     duration: '约 5 分钟',

@@ -4,7 +4,22 @@
 
 ## 当前阶段
 
-**阶段五：开源发布与仓库拆分** — 状态：**已完成，待审查**
+**阶段五：开源发布与仓库拆分** — 状态：**已通过**（三个收尾项见下）
+
+### 阶段五的三个收尾项（已完成）
+
+1. **浏览器类检查进 CI**：`test.yml` 新增 `e2e` job —— `npm ci` → `npm run build`
+   → `node tools/site.mjs --check`（跑 `dist`，阶段五那个白屏缺陷只有它看得见）
+   → 起 dev server → `node console/scripts/smoke.mjs`（界面 90 项）。
+   ubuntu runner 自带 `google-chrome`，`console/scripts/lib/browser.mjs` 的候选列表里已有它。
+2. **对齐「灯亮 / 灯灭」**：`demo/script.json` 的 `pitch` 与 `console/src/works.ts` 的
+   `summary` 都写「灯会自己**暗**下去」，而 `third` 的 cue 是 `{"event":"reveal"}`
+   （灯猛地**一亮**）。改的是那两句摘要（`暗下去` → `猛地亮起来`），
+   **`demo/` 的 cue 与正文一个字没动**。
+3. **归档 `docs/阶段五汇报.md`** —— 已进版本库。
+
+> 这个收尾项的起因是阶段四末尾那次「Demo 翻页」修订留下的已知不一致，
+> 记录见本文件末尾「Demo 翻页修订」一节的「遗留（本次按你的选择没修）」。
 
 已发布，两个仓库都 public：
 
@@ -34,7 +49,8 @@ Pages（HTTPS，所以 Web Serial 可用）：
 | 二 | `docs/ARGX-02-控制台与模拟器.md` | 已通过（界面部分已在阶段四重做） |
 | 三 | `docs/ARGX-03-Demo与SDK.md` | 已通过（产物无界面，全部有效） |
 | 四 | `docs/ARGX-04-界面重做.md` | **已通过**（验收证据见下；但构建产物白屏是阶段四遗留，阶段五已修） |
-| 五 | `docs/ARGX-05-开源发布.md` | **已完成，待审查**（验收证据见下） |
+| 五 | `docs/ARGX-05-开源发布.md` | **已通过**（三个收尾项已完成，见「当前阶段」一节） |
+| 六 | `docs/ARGX-06-文档与AI-Skill.md` | **未开始**（文档专业化 + 去 AI 味 + `guide/` 单一来源 + 新建 `argx-skill` + 全站入口 + 首页改版 + 三仓 README 双语） |
 
 状态取值：未开始 / 进行中 / 待审查 / 已通过
 
@@ -937,9 +953,21 @@ node console/scripts/smoke.mjs  # 端到端冒烟（需先 npm run dev）→ 26 
 
 3. **硬件仓没有 CI**，编译验证靠人工。要补的话是「装 esp32 core + 编译」一条 workflow。
 
-4. **站点校验（`node tools/site.mjs --check`）不在 CI 里。** 它跑的是 `dist` 而不是
-   dev server，恰好能覆盖本次这类缺陷；没进 CI 只是因为不敢肯定 ubuntu runner 上
-   能稳定起 Chrome。**这是最值得优先补的一件事。**
+4. ~~**凡是需要浏览器的检查，一条都不在 CI 里。**~~ → **阶段五收尾已补上**（`e2e` job，
+   见本文件开头「阶段五的三个收尾项」）。下面是当时的原文，保留作为记录。
+   具体是两处：
+
+   - `node tools/site.mjs --check` —— 拼站点 + 起服务 + 无头浏览器扫 404。它跑的是
+     `dist` 而不是 dev server，**恰好能覆盖阶段五这次的白屏缺陷**（五条闸门 +
+     控制台冒烟 90 项全都看不见它）。
+   - `node console/scripts/smoke.mjs` —— 界面结构 90 项，跑的是 dev server。
+
+   两条都没进 CI，只是因为不敢肯定 ubuntu runner 上能稳定起 Chrome。
+   **这是最值得优先补的一件事**：GitHub 的 ubuntu runner 自带 `google-chrome`，
+   而 `console/scripts/lib/browser.mjs` 的候选列表里已经有 `google-chrome` 这一项
+   （阶段五为了可移植性刚加的）。补齐之后，`test.yml` 会新增一个 `e2e` job：
+   `npm ci` → `npm run build` → `node tools/site.mjs --check` → `node console/scripts/smoke.mjs`。
+   若 Chrome 起不来，退回「只组装」，并在本文件里记一笔。
 
 5. **知识仍然集中在主仓。** `CLAUDE.md`（硬约束、已知坑、决策记录）在 `argx` 仓库里，
    只改硬件的人看不到。硬件仓 README 已经写明「两侧实现要一起改」，
