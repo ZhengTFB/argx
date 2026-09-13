@@ -120,8 +120,8 @@ export function Device() {
 
           <div style={{ marginTop: 'var(--space-4)' }}>
             <Callout>
-              真实装置的端口选择框由<strong>操作系统</strong>弹出，网页看不到里面有什么，
-              所以这里没有"扫描到的设备列表"——那不是能做的事，不是没做。
+              真实装置的端口选择框由<strong>操作系统</strong>弹出，网页读不到里面的内容，
+              所以这里没有"扫描到的设备列表"。
             </Callout>
           </div>
           <div style={{ marginTop: 'var(--space-3)' }}>
@@ -227,8 +227,7 @@ export function Device() {
           <Callout tone={check.summary.startsWith('四路') ? 'success' : 'warning'}>{check.summary}</Callout>
         ) : (
           <Callout>
-            点亮那一下发的是能力 cue，不是"我们发过了"就算过 ——
-            每一路都要等装置把状态回查回来才算数。
+            每一路都要等装置把状态回查回来才判定通过，不是网页发过就算数。
           </Callout>
         )}
       </Panel>
@@ -329,7 +328,7 @@ function HeartbeatChart({ data }: { data: number[] }) {
   if (data.length < 2) {
     return (
       <div className="hb-plot" style={{ marginBottom: 'var(--space-4)' }}>
-        <div className="hb-empty">还没攒够数据 —— 至少要有两次心跳才画得出线</div>
+        <div className="hb-empty">还没攒够数据，至少要有两次心跳才画得出线</div>
       </div>
     );
   }
@@ -404,4 +403,4 @@ function fmtTime(t: number): string {
 /** 点「为什么没有固件版本？」之后显示的解释 */
 const ARGX_PROBE =
   '协议里没有这一项。ready 帧只带 dev / proto / caps，state 帧只有 i / pri / ttl / uptime。' +
-  '想要固件版本，得先往协议里加字段——那是改协议，不是改界面。';
+  '要加固件版本，得先往协议里加字段。';

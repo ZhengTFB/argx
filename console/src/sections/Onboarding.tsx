@@ -100,7 +100,7 @@ function GuidePath({ onGo }: { onGo: (k: SectionKey) => void }) {
     },
     {
       title: '选一种装置',
-      desc: '没有硬件也能走完这条路 —— 虚拟装置和真装置跑的是同一套会话层。',
+      desc: '没有硬件也能走完这条路。虚拟装置与真装置跑同一套会话层。',
       body: (
         <div className="row" style={{ flexWrap: 'wrap' }}>
           <Btn tone="primary" onClick={() => device.useSimulator()}>连虚拟装置</Btn>
@@ -110,7 +110,7 @@ function GuidePath({ onGo }: { onGo: (k: SectionKey) => void }) {
     },
     {
       title: '连接',
-      desc: '真实装置会弹出一个端口选择框 —— 那是操作系统画的，网页看不到里面有什么。',
+      desc: '真实装置会弹出一个端口选择框。那个框由操作系统绘制，网页读不到里面的内容。',
       body: (
         <div className="row">
           {d.connecting ? <Pill tone="info">正在连接…</Pill>
@@ -122,7 +122,7 @@ function GuidePath({ onGo }: { onGo: (k: SectionKey) => void }) {
     },
     {
       title: '试一下',
-      desc: '点一下，装置真的动 —— 这一下走的是完整链路：cue → 装置 → ack。',
+      desc: '点一下，装置真的动。这一下走的是完整链路：网页 → 装置 → 网页。',
       body: (
         <div className="row">
           <Btn

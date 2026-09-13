@@ -36,7 +36,7 @@ export const FAULT_OPTIONS: FaultOption[] = [
   {
     key: 'noReady',
     label: '不发 ready',
-    hint: '连接时压掉那一次能力声明，模拟「这一帧在路上丢了」。上层不该傻等它 —— 发一帧 hello 就能要回来。',
+    hint: '连接时压掉那一次能力声明，模拟「这一帧在路上丢了」。网页端不应该等它，发一帧 hello 就能要回来。',
     on: true, off: false,
     restartOnChange: true
   },

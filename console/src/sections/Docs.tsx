@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { DOC_GROUPS, DOC_PAGES, type DocBlock, type DocPage } from '../data/docs';
+import { DOC_GROUPS, DOC_PAGES } from '../data/docs.generated';
+import type { DocBlock, DocPage } from '../data/docs.types';
 import { Callout, CodeBlock } from '../ui/primitives';
 import { PageHead } from '../ui/Chrome';
 import { IcoArrowLeft, IcoArrowRight, IcoChevronRight, IcoSearch } from '../ui/icons';

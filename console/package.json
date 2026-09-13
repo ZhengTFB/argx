@@ -5,6 +5,8 @@
   "type": "module",
   "description": "ARGX 中枢控制台：连接管理、设备测试、能力查看、作品浏览、文档查阅，内置虚拟装置模拟器",
   "scripts": {
+    "predev": "node ../tools/build-guide.mjs",
+    "prebuild": "node ../tools/build-guide.mjs",
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview"

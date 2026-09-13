@@ -55,6 +55,13 @@ jobs:
 
       - run: npm ci
 
+      # 文档正文只在 guide/*.md 写一份，docs.generated.ts 是生成物。
+      # 生成物提交进了仓库（clone 下来不跑脚本也能起 dev），代价是可能与 md 脱节 ——
+      # 这一条就是那个代价的价钱：谁手改了生成物、或者改了 md 忘了重生成，这里就红。
+      - name: 文档生成物与 guide/*.md 一致
+        working-directory: .
+        run: node tools/build-guide.mjs --check
+
       # tsc --noEmit && vite build
       - name: 类型检查 + 打包
         run: npm run build

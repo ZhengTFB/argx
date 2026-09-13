@@ -128,8 +128,8 @@ export function Play({ workId, onGo }: { workId: string; onGo: (k: SectionKey) =
             )}
           </div>
           <p className="page-sub" style={{ marginTop: 'var(--space-4)' }}>
-            这是 <code>demo/</code> 里那个真页面，控制台只是把它嵌进来 —— 右边的状态栏跟着它动，
-            说明两边说的是同一条通道。
+            这是 <code>demo/</code> 里那个真页面，控制台只是把它嵌进来。右边的状态栏跟着它动，
+            说明两边走的是同一条通道。
           </p>
         </>
       )}

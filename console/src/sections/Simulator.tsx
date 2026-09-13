@@ -154,8 +154,8 @@ export function Simulator() {
       {!live ? (
         <div style={{ marginBottom: 'var(--space-6)' }}>
           <Callout tone="warning">
-            还没有装置。点「连虚拟装置」就能让下面四张卡动起来 ——
-            模拟器和真机跑的是同一套会话层，只是装置换成了虚拟的。
+            还没有装置。点「连虚拟装置」就能让下面四张卡动起来。
+            模拟器与真机跑同一套会话层，只是装置换成了虚拟的。
             <span style={{ marginLeft: 'var(--space-3)' }}>
               <Btn size="sm" tone="primary" onClick={() => device.useSimulator()}>连虚拟装置</Btn>
             </span>
@@ -247,7 +247,7 @@ function Faults() {
       />
       {d.kind !== 'simulator' ? (
         <p className="page-sub" style={{ marginTop: 'var(--space-3)' }}>
-          故障注入只能作用在虚拟装置上 —— 真机上没法伪造丢包。
+          故障注入只对虚拟装置有效。真机上无法伪造丢包。
           现在连的是<strong>{d.transportLabel ?? '别的通道'}</strong>，这些开关不会生效。
         </p>
       ) : null}
