@@ -138,20 +138,39 @@ export async function connect(port, timeoutMs = 25000) {
  */
 export async function launch({ port, url, windowSize = '1440,900' }) {
   const profile = mkdtempSync(join(tmpdir(), 'argx-smoke-'));
-  const child = spawn(
-    findBrowser()[0],
-    [
-      '--headless=new',
-      '--disable-gpu',
-      '--no-first-run',
-      '--no-default-browser-check',
-      `--window-size=${windowSize}`,
-      `--remote-debugging-port=${port}`,
-      `--user-data-dir=${profile}`,
-      url
-    ],
-    { stdio: 'ignore' }
-  );
+  const args = [
+    '--headless=new',
+    '--disable-gpu',
+    '--no-first-run',
+    '--no-default-browser-check',
+    `--window-size=${windowSize}`,
+    `--remote-debugging-port=${port}`,
+    `--user-data-dir=${profile}`,
+    url
+  ];
+
+  // 候选列表逐个试。以前这里写的是 findBrowser()[0] ——
+  // 那个「候选列表」等于只用了第一条（Windows 的 Edge 绝对路径），
+  // 换到 CI 或别人的机器上就直接 ENOENT。
+  const tried = findBrowser();
+  let child = null;
+  let lastErr = null;
+  for (const exe of tried) {
+    const c = spawn(exe, args, { stdio: 'ignore' });
+    const err = await new Promise((ok) => {
+      c.once('error', ok);
+      setTimeout(() => ok(null), 400); // 起来了就不会再有 error
+    });
+    if (!err) {
+      c.on('error', () => {});
+      child = c;
+      break;
+    }
+    lastErr = err;
+  }
+  if (!child) {
+    throw new Error(`找不到可用的浏览器（试过 ${tried.length} 个）：${lastErr?.message ?? ''}`);
+  }
 
   const cdp = await connect(port);
 

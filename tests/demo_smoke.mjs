@@ -37,10 +37,43 @@ const MIME = {
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 function findBrowser() {
-  return (
-    process.env.BROWSER ||
-    'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe'
-  );
+  return [
+    process.env.BROWSER,
+    // Windows 上本机装的（作者的开发机）
+    'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe',
+    'C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe',
+    'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
+    // PATH 里的（macOS / Linux / CI）
+    'msedge',
+    'google-chrome',
+    'chromium',
+    'chromium-browser'
+  ].filter(Boolean);
+}
+
+/**
+ * 起一个浏览器：候选列表**逐个试**，不是取第 0 个。
+ *
+ * 原来这里写死一条 Windows 的 Edge 路径，于是在 CI（ubuntu）和别人的 Mac 上
+ * 只会得到一句 ENOENT —— 而「别人 clone 下来能不能跑」正是开源仓库的底线。
+ */
+async function launchBrowser(args) {
+  const tried = findBrowser();
+  let lastErr;
+  for (const exe of tried) {
+    const child = spawn(exe, args, { stdio: 'ignore' });
+    const err = await new Promise((ok) => {
+      child.once('error', ok);
+      // 起来了就不会再有 error 事件，等一小下放它过去
+      setTimeout(() => ok(null), 400);
+    });
+    if (!err) {
+      child.on('error', () => {}); // 之后万一出错也别把整个进程掀了
+      return child;
+    }
+    lastErr = err;
+  }
+  throw new Error(`找不到可用的浏览器（试过 ${tried.length} 个）：${lastErr?.message ?? ''}`);
 }
 
 // ------------------------------------------------------------- 静态服务器
@@ -155,20 +188,16 @@ const watchFor = (text, ms) => `
 async function main() {
   const server = await startServer();
   const profile = mkdtempSync(join(tmpdir(), 'argx-demo-'));
-  const child = spawn(
-    findBrowser(),
-    [
-      '--headless=new',
-      '--disable-gpu',
-      '--no-first-run',
-      '--no-default-browser-check',
-      '--allow-file-access-from-files',
-      `--remote-debugging-port=${CDP_PORT}`,
-      `--user-data-dir=${profile}`,
-      DEMO_URL
-    ],
-    { stdio: 'ignore' }
-  );
+  const child = await launchBrowser([
+    '--headless=new',
+    '--disable-gpu',
+    '--no-first-run',
+    '--no-default-browser-check',
+    '--allow-file-access-from-files',
+    `--remote-debugging-port=${CDP_PORT}`,
+    `--user-data-dir=${profile}`,
+    DEMO_URL
+  ]);
 
   let cdp;
   try {
